@@ -37,7 +37,7 @@ window.KSC_CONFIG = Object.freeze({
   function loadExtension() {
     if (document.querySelector('script[data-ksc-admin-delete]')) return;
     const script = document.createElement('script');
-    script.src = './admin-delete.js?v=20260729-1458';
+    script.src = './admin-delete.js?v=20260729-1503';
     script.dataset.kscAdminDelete = 'true';
     script.async = true;
     document.body.appendChild(script);
