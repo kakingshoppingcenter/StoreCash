@@ -26,10 +26,6 @@ function getSecretKey(): string {
   return selected
 }
 
-function hasManageUsers(profile: { role?: string; permissions?: Record<string, boolean> | null }) {
-  return profile.role === 'admin' || profile.permissions?.manage_users === true
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders })
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405)
@@ -57,7 +53,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (callerProfileError || !callerProfile?.active) return jsonResponse({ error: 'Your account is not active.' }, 403)
-    if (!hasManageUsers(callerProfile)) return jsonResponse({ error: 'You are not authorized to delete users.' }, 403)
+    if (callerProfile.role !== 'admin') return jsonResponse({ error: 'Only a system administrator can permanently delete users.' }, 403)
 
     const payload = await req.json().catch(() => ({}))
     if (String(payload.action ?? '') !== 'delete_user') {
