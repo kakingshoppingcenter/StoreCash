@@ -19,6 +19,7 @@ The repository contains a working responsive web application connected to Supaba
 - Submitted-report locking and authorized reopening
 - Executive daily summary and protected CSV export
 - Administration for branches, accounts, roles, and permissions
+- Protected deletion of unused branches with typed confirmation
 - Password-change controls
 - Immutable audit records for financial changes
 - Responsive desktop, tablet, and mobile interface
@@ -46,7 +47,8 @@ Run the SQL files in this exact order from **Supabase Dashboard > SQL Editor**:
 2. `supabase/admin_extension.sql`
 3. `supabase/production_hardening.sql`
 4. `supabase/report_reopen_extension.sql`
-5. Any other documented feature migration that has not yet been applied
+5. `supabase/branch_delete_extension.sql`
+6. Any other documented feature migration that has not yet been applied
 
 The production hardening file adds server-side enforcement for:
 
@@ -58,6 +60,8 @@ The production hardening file adds server-side enforcement for:
 - Verifier identity matching the signed-in account
 - Mandatory remarks for non-zero differences
 - Branch-scoped verification permissions
+
+The branch deletion extension allows permanent deletion only when a branch has no assigned users and no financial reports. Branches with historical or account references must be marked inactive instead. Successful branch changes and deletions are recorded in the audit trail.
 
 ## Required Supabase Edge Function
 
@@ -149,10 +153,11 @@ Before entering real business data:
 8. Confirm that reports with differences require remarks.
 9. Confirm that unauthorized API requests are rejected by Row Level Security.
 10. Confirm that audit records are created for report and verification changes.
-11. Test CSV exports using remarks beginning with `=`, `+`, `-`, and `@`.
-12. Test dates near midnight using the Asia/Manila timezone.
-13. Test on mobile, tablet, laptop, and large desktop displays.
-14. Configure automated Supabase backups and perform a real restoration test.
-15. Document the recovery process and responsible administrators.
+11. Confirm that used branches cannot be deleted and unused branches require code confirmation.
+12. Test CSV exports using remarks beginning with `=`, `+`, `-`, and `@`.
+13. Test dates near midnight using the Asia/Manila timezone.
+14. Test on mobile, tablet, laptop, and large desktop displays.
+15. Configure automated Supabase backups and perform a real restoration test.
+16. Document the recovery process and responsible administrators.
 
 Do not treat the system as fully production-ready until this checklist is completed and signed off by both operations and accounting.
