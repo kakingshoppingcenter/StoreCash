@@ -2,18 +2,12 @@
 
 (function installDashboardAnalytics() {
   const PAYMENT_COLORS = ['#1268e8', '#18a46b', '#7259d9', '#e9a23b', '#37a5c9', '#d35d6e', '#6b7d91', '#9e7a4c'];
-  const STATUS_COLORS = {
-    Matched: '#138a45',
-    Pending: '#e9a23b',
-    'With Difference': '#b42318',
-    Draft: '#718096'
-  };
 
   function loadAnalyticsStyles() {
     if (document.querySelector('link[data-ksc-dashboard-analytics]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = './dashboard-analytics.css?v=20260729-1927';
+    link.href = './dashboard-analytics.css?v=20260729-1932';
     link.dataset.kscDashboardAnalytics = 'true';
     document.head.appendChild(link);
   }
@@ -38,7 +32,7 @@
         <article class="analytics-stat"><span class="analytics-stat-label">Average per Customer</span><strong class="analytics-stat-value" id="statAverage">₱0.00</strong><small class="analytics-stat-note">Reported total divided by customers</small></article>
         <article class="analytics-stat" id="statAttentionCard"><span class="analytics-stat-label">Attention Required</span><strong class="analytics-stat-value" id="statAttention">0</strong><small class="analytics-stat-note" id="statAttentionNote">0 pending · 0 with difference</small></article>
       </div>
-      <div class="analytics-grid">
+      <div class="analytics-grid analytics-grid-two">
         <article class="analytics-card trend-card">
           <div class="analytics-card-head"><div><h4>Branch Reconciliation</h4><p>Reported totals compared with verified amounts received.</p></div><span class="analytics-tag">Branch View</span></div>
           <div class="native-chart-frame"><div id="branchBars" class="branch-bars"></div><div id="branchChartEmpty" class="chart-empty hidden">No branch submissions are available for this date.</div></div>
@@ -47,12 +41,6 @@
           <div class="analytics-card-head"><div><h4>Payment Channel Mix</h4><p>Share of the total by payment method.</p></div><span class="analytics-tag">Payment Mix</span></div>
           <div class="donut-layout"><div id="paymentMixChart" class="native-donut" role="img" aria-label="Payment channel mix"><div class="donut-center"><strong id="paymentMixTotal">₱0.00</strong><span>Total</span></div></div><div id="paymentMixLegend" class="donut-legend"></div></div>
           <div id="paymentMixEmpty" class="chart-empty inline-empty hidden">No payment amounts have been reported for this date.</div>
-        </article>
-        <article class="analytics-card status-card">
-          <div class="analytics-card-head"><div><h4>Reconciliation Status</h4><p>Submission status and reports needing follow-up.</p></div><span class="analytics-tag">Control Status</span></div>
-          <div class="donut-layout"><div id="statusChart" class="native-donut" role="img" aria-label="Reconciliation status"><div class="donut-center"><strong id="statusTotal">0</strong><span>Reports</span></div></div><div id="statusLegend" class="donut-legend"></div></div>
-          <div id="statusChartEmpty" class="chart-empty inline-empty hidden">No report statuses are available for this date.</div>
-          <div class="analytics-footnote">Pending reports have not yet received deposit verification.</div>
         </article>
       </div>`;
 
@@ -174,31 +162,11 @@
     renderDonut('paymentMixChart', 'paymentMixLegend', rows, 'Payment channel mix', (value) => formatMoney(value));
   }
 
-  function renderStatusChart() {
-    const values = { Matched: 0, Pending: 0, 'With Difference': 0, Draft: 0 };
-    reports.forEach((report) => {
-      const verification = verificationFor(report);
-      if (!verification && report.status === 'draft') values.Draft += 1;
-      else if (!verification) values.Pending += 1;
-      else if (Math.abs(Number(verification.difference || 0)) < 0.005) values.Matched += 1;
-      else values['With Difference'] += 1;
-    });
-
-    const rows = Object.entries(values)
-      .map(([label, value]) => ({ label, value, color: STATUS_COLORS[label] }))
-      .filter((row) => row.value > 0);
-
-    toggleEmpty('statusChartEmpty', !rows.length);
-    byId('statusTotal').textContent = reports.length.toLocaleString('en-PH');
-    renderDonut('statusChart', 'statusLegend', rows, 'Reconciliation status', (value) => Number(value).toLocaleString('en-PH'));
-  }
-
   function renderAnalytics() {
     addSection();
     updateStatistics();
     renderBranchChart();
     renderPaymentChart();
-    renderStatusChart();
   }
 
   loadAnalyticsStyles();
