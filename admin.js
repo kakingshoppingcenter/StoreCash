@@ -27,6 +27,7 @@ let adminBranches=[];
 let adminUsers=[];
 let selectedAdminUserId=null;
 let selectedAdminBranchId=null;
+let administrationExtensionReady=true;
 
 function hasPermission(key,target=profile){
   if(!target)return false;
@@ -40,11 +41,26 @@ isStoreUser=function(){return Boolean(profile?.branch_id)&&!hasPermission('repor
 canVerify=function(){return hasPermission('checker_verify');};
 canReviewAudit=function(){return hasPermission('audit_view');};
 
+function isMissingAdminExtensionError(error){
+  return /column .*?(email|permissions).*?does not exist|could not find.*?(email|permissions).*?column|schema cache/i.test(error?.message||'');
+}
+
 loadProfile=async function(){
-  const {data,error}=await db.from('profiles').select('id,email,full_name,role,branch_id,active,permissions').eq('id',session.user.id).single();
-  if(error)throw error;
-  if(!data.active)throw new Error('Your account is not active. Contact the system administrator.');
-  profile=data;
+  let result=await db.from('profiles').select('id,email,full_name,role,branch_id,active,permissions').eq('id',session.user.id).maybeSingle();
+
+  if(result.error&&isMissingAdminExtensionError(result.error)){
+    administrationExtensionReady=false;
+    result=await db.from('profiles').select('id,full_name,role,branch_id,active').eq('id',session.user.id).maybeSingle();
+    if(result.data){
+      result.data.email=session.user.email||'';
+      result.data.permissions={};
+    }
+  }
+
+  if(result.error)throw result.error;
+  if(!result.data)throw new Error('Your login is valid, but no system profile is assigned to this account. Ask an administrator to create or repair your profile.');
+  if(!result.data.active)throw new Error('Your login is valid, but your system account is inactive. Ask an administrator to activate it.');
+  profile={...result.data,email:result.data.email||session.user.email||'',permissions:result.data.permissions||{}};
 };
 
 applyRoleVisibility=function(){
@@ -66,12 +82,12 @@ setView=function(view){
   const map={dashboard:['dashboard','reports','summary'],entry:['entry'],checker:['checker','reports'],reports:['reports'],summary:['summary','reports'],audit:['audit'],administration:['administration']};
   (map[currentView]||[]).forEach(name=>document.querySelectorAll(`[data-section="${name}"]`).forEach(s=>s.classList.remove('view-hidden')));
   const titles={dashboard:'Daily Operations Dashboard',entry:'Daily Store Entry',checker:'Deposit Verification',reports:'Branch Reports',summary:'Executive Summary',audit:'Audit Trail',administration:'System Administration'};
-  byId('pageTitle').textContent=titles[currentView]||'KakingStoreCash';
+  byId('pageTitle').textContent=titles[currentView]||'Kaking Store Cash';
   if(currentView==='administration')loadAdministration();
 };
 
 const baseLoadData=loadData;
-loadData=async function(){await baseLoadData();if(hasAnyPermission('manage_users,manage_branches'))await loadAdministration();};
+loadData=async function(){await baseLoadData();if(administrationExtensionReady&&hasAnyPermission('manage_users,manage_branches'))await loadAdministration();};
 
 function buildPermissionEditor(){
   const groups=[...new Set(PERMISSION_DEFINITIONS.map(p=>p.group))];
@@ -98,6 +114,7 @@ async function invokeAdminUsers(payload){
 }
 
 async function loadAdministration(){
+  if(!administrationExtensionReady){showToast('Run supabase/admin_extension.sql before using user administration.','error');return;}
   if(!hasAnyPermission('manage_users,manage_branches')||!db||!session)return;
   try{
     const [branchResult,userResult]=await Promise.all([
