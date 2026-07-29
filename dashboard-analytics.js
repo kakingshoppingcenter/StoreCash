@@ -8,7 +8,7 @@
     if (!document.querySelector('link[data-ksc-dashboard-analytics]')) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = './dashboard-analytics.css?v=20260729-1930';
+      link.href = './dashboard-analytics.css?v=20260729-1940';
       link.dataset.kscDashboardAnalytics = 'true';
       document.head.appendChild(link);
     }
@@ -59,6 +59,11 @@
         <article class="analytics-card trend-card">
           <div class="analytics-card-head"><div><h4>Branch Reconciliation</h4><p>Reported totals compared with verified amounts received.</p></div><span class="analytics-tag">Branch View</span></div>
           <div class="chart-frame" id="branchChartFrame"><canvas id="branchChart"></canvas><div id="branchChartEmpty" class="chart-empty hidden">No branch submissions are available for this date.</div></div>
+        </article>
+        <article class="analytics-card status-card">
+          <div class="analytics-card-head"><div><h4>Reconciliation Status</h4><p>Submission status and reports needing follow-up.</p></div><span class="analytics-tag">Control Status</span></div>
+          <div class="chart-frame status-chart-frame"><canvas id="statusChart"></canvas><div id="statusChartEmpty" class="chart-empty hidden">No report statuses are available for this date.</div></div>
+          <div class="analytics-footnote">Pending reports have not yet received deposit verification.</div>
         </article>
       </div>`;
 
@@ -214,14 +219,71 @@
     });
   }
 
+  function renderStatusChart() {
+    const values = { Matched: 0, Pending: 0, 'With Difference': 0, Draft: 0 };
+
+    reports.forEach((report) => {
+      const verification = verificationFor(report);
+      if (!verification && report.status === 'draft') values.Draft += 1;
+      else if (!verification) values.Pending += 1;
+      else if (Math.abs(Number(verification.difference || 0)) < 0.005) values.Matched += 1;
+      else values['With Difference'] += 1;
+    });
+
+    const rows = Object.entries(values)
+      .map(([label, value]) => ({ label, value }))
+      .filter((row) => row.value > 0);
+
+    empty('statusChartEmpty', !rows.length);
+    if (!rows.length || !window.Chart) return;
+
+    replaceChart('status', 'statusChart', {
+      type: 'doughnut',
+      data: {
+        labels: rows.map((row) => row.label),
+        datasets: [{
+          data: rows.map((row) => row.value),
+          backgroundColor: rows.map((row) => ({
+            Matched: '#138a45',
+            Pending: '#e9a23b',
+            'With Difference': '#b42318',
+            Draft: '#718096'
+          })[row.label]),
+          borderColor: '#fff',
+          borderWidth: 3,
+          hoverOffset: 5
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '66%',
+        plugins: {
+          legend: { position: 'bottom', labels: plugins().legend.labels },
+          tooltip: {
+            ...plugins().tooltip,
+            callbacks: {
+              label(ctx) {
+                const count = Number(ctx.raw);
+                return `${ctx.label}: ${count.toLocaleString('en-PH')} report${count === 1 ? '' : 's'}`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
   function renderAnalytics() {
     addSection();
     updateStatistics();
     if (!window.Chart) {
       empty('branchChartEmpty', true, 'Chart could not load. Refresh the page and check the internet connection.');
+      empty('statusChartEmpty', true, 'Chart could not load. Refresh the page and check the internet connection.');
       return;
     }
     renderBranchChart();
+    renderStatusChart();
   }
 
   addSection();
