@@ -16,6 +16,31 @@
     return fallback;
   }
 
+  async function ensureCreatedUserIsActive(userId) {
+    if (!userId) throw new Error('The user was created without a valid profile identifier.');
+
+    const current = await db
+      .from('profiles')
+      .select('id,active')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (current.error) throw current.error;
+    if (current.data?.active === true) return;
+
+    const repaired = await db
+      .from('profiles')
+      .update({ active: true })
+      .eq('id', userId)
+      .select('id,active')
+      .maybeSingle();
+
+    if (repaired.error) throw repaired.error;
+    if (!repaired.data?.active) {
+      throw new Error('The account was created, but automatic activation could not be confirmed. Select the user and activate the account before sharing its login.');
+    }
+  }
+
   friendlyFunctionError = function improvedFunctionError(error) {
     const raw = String(error?.message || 'Administration request failed.');
 
@@ -41,6 +66,9 @@
   };
 
   invokeAdminUsers = async function invokeAdminUsersExplicitly(payload) {
+    const creatingUser = payload?.action === 'create_user';
+    const requestPayload = creatingUser ? { ...payload, active: true } : payload;
+
     const { data: sessionData, error: sessionError } = await db.auth.getSession();
     if (sessionError) throw new Error(sessionError.message || 'Unable to read the current login session.');
 
@@ -58,9 +86,9 @@
         Authorization: `Bearer ${activeSession.access_token}`,
         apikey: window.KSC_CONFIG.supabasePublishableKey,
         'Content-Type': 'application/json',
-        'x-client-info': 'kaking-store-cash-web/1.0'
+        'x-client-info': 'kaking-store-cash-web/1.1'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(requestPayload)
     });
 
     const responseText = await response.text();
@@ -77,8 +105,33 @@
     }
 
     if (responseData?.error) throw new Error(responseData.error);
+    if (creatingUser) await ensureCreatedUserIsActive(responseData?.user_id);
     return responseData || {};
   };
+
+  function installAutomaticActivationInterface() {
+    const form = document.getElementById('userAdminForm');
+    const activeControl = document.getElementById('userActive');
+    if (!form || !activeControl) return;
+
+    const label = activeControl.closest('.switch-line');
+    if (label && !label.querySelector('[data-auto-activation-note]')) {
+      const note = document.createElement('small');
+      note.dataset.autoActivationNote = 'true';
+      note.textContent = 'New accounts activate automatically';
+      note.style.display = 'block';
+      note.style.marginLeft = '6px';
+      note.style.color = '#66758a';
+      note.style.fontWeight = '500';
+      label.appendChild(note);
+    }
+
+    form.addEventListener('submit', () => {
+      if (!selectedAdminUserId) activeControl.checked = true;
+    }, true);
+  }
+
+  installAutomaticActivationInterface();
 })();
 
 (function loadProtectedBranchDeletion() {
