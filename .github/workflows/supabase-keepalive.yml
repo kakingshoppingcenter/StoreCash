@@ -1,0 +1,35 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # Three tiny requests per day. Times are UTC and intentionally avoid the top of the hour.
+    - cron: '17 0,8,16 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Send lightweight database request
+        env:
+          SUPABASE_URL: https://cdmghdexjcqcmrwnbglw.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_coaW1J3o1Ch0VChpZzEa1A_sh1QQ29F
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --retry 2 \
+            --retry-delay 5 \
+            --max-time 20 \
+            --request POST \
+            --header "apikey: ${SUPABASE_PUBLISHABLE_KEY}" \
+            --header "Content-Type: application/json" \
+            --data '{}' \
+            "${SUPABASE_URL}/rest/v1/rpc/ksc_keepalive"
