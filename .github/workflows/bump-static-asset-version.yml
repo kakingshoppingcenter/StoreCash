@@ -1,0 +1,59 @@
+name: Refresh GitHub Pages Asset Version
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app.js'
+      - 'admin.js'
+      - 'config.js'
+      - 'styles.css'
+      - 'admin.css'
+      - 'assets/**'
+      - '.github/workflows/bump-static-asset-version.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-static-asset-version
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update version query strings
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          from datetime import datetime, timezone
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          version = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+          updated = re.sub(r'\?v=[0-9-]+', f'?v={version}', text)
+          path.write_text(updated, encoding='utf-8')
+          PY
+
+      - name: Commit refreshed version
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'Asset version is already current.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'chore: refresh GitHub Pages asset version'
+          git push
