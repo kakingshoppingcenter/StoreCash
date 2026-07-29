@@ -174,8 +174,13 @@ window.KSC_CONFIG = Object.freeze({
     },
     {
       selector: 'script[data-ksc-dashboard-analytics]',
-      source: './dashboard-analytics.js?v=20260729-1927',
+      source: './dashboard-analytics.js?v=20260729-1932',
       attribute: 'kscDashboardAnalytics'
+    },
+    {
+      selector: 'script[data-ksc-excel-export]',
+      source: './export-excel.js?v=20260729-1938',
+      attribute: 'kscExcelExport'
     }
   ];
 
