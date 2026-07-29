@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy admin-users
+    name: Deploy administration functions
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 15
@@ -67,16 +67,19 @@ jobs:
         run: |
           test -f supabase/config.toml
           test -f supabase/functions/admin-users/index.ts
+          test -f supabase/functions/admin-delete-user/index.ts
           supabase --version
 
-      - name: Deploy admin-users Edge Function
+      - name: Deploy administration Edge Functions
         if: ${{ steps.credentials.outputs.ready == 'true' }}
         shell: bash
         run: |
-          supabase functions deploy admin-users \
-            --project-ref "${SUPABASE_PROJECT_ID}" \
-            --no-verify-jwt \
-            --use-api
+          for function_name in admin-users admin-delete-user; do
+            supabase functions deploy "${function_name}" \
+              --project-ref "${SUPABASE_PROJECT_ID}" \
+              --no-verify-jwt \
+              --use-api
+          done
 
       - name: Confirm deployed functions
         if: ${{ steps.credentials.outputs.ready == 'true' }}
