@@ -41,6 +41,11 @@ window.KSC_CONFIG = Object.freeze({
       attribute: 'kscPasswordChange'
     },
     {
+      selector: 'script[data-ksc-password-responsive]',
+      source: './password-change-responsive.js?v=20260729-1605',
+      attribute: 'kscPasswordResponsive'
+    },
+    {
       selector: 'script[data-ksc-admin-delete]',
       source: './admin-delete.js?v=20260729-1503',
       attribute: 'kscAdminDelete'
