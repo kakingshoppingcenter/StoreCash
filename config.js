@@ -41,6 +41,11 @@ window.KSC_CONFIG = Object.freeze({
       attribute: 'kscReportReopen'
     },
     {
+      selector: 'script[data-ksc-report-save-guard]',
+      source: './report-save-guard.js?v=20260729-1643',
+      attribute: 'kscReportSaveGuard'
+    },
+    {
       selector: 'script[data-ksc-password-change]',
       source: './password-change.js?v=20260729-1605',
       attribute: 'kscPasswordChange'
