@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b1f3a" />
+  <title>KakingStoreCash</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">K</div><div><h1>KakingStoreCash</h1><p>Daily Cash & Deposit Control</p></div></div>
+    <nav>
+      <button class="nav-item active" data-view="dashboard">Dashboard</button>
+      <button class="nav-item" data-view="entry">Daily Entry</button>
+      <button class="nav-item" data-view="checker">Deposit Checker</button>
+      <button class="nav-item" data-view="reports">Branch Reports</button>
+      <button class="nav-item" data-view="summary">Executive Summary</button>
+    </nav>
+    <div class="profile"><div class="avatar">KS</div><div><strong>Store Operations</strong><span>Authorized User</span></div></div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <div><p class="eyebrow">Finance Control Center</p><h2 id="pageTitle">Daily Operations Dashboard</h2></div>
+      <div class="top-actions"><span id="todayLabel"></span><button id="exportBtn" class="btn secondary">Export CSV</button></div>
+    </header>
+
+    <section class="metrics">
+      <article><span>Reported Total</span><strong id="metricReported">₱0.00</strong><small>Selected day</small></article>
+      <article><span>Actual Received</span><strong id="metricActual">₱0.00</strong><small>Verified deposits</small></article>
+      <article><span>Difference</span><strong id="metricDifference">₱0.00</strong><small>Actual minus reported</small></article>
+      <article><span>Customers</span><strong id="metricCustomers">0</strong><small>Total transactions</small></article>
+    </section>
+
+    <section class="workspace">
+      <article class="card entry-card">
+        <div class="card-head"><div><h3>Daily Store Entry</h3><p>Encode the branch payment summary for the selected business date.</p></div><span class="badge neutral" id="entryStatus">Draft</span></div>
+        <form id="entryForm">
+          <div class="form-grid two">
+            <label>Branch<select id="branch" required><option>Parkmall</option><option>Mactan</option><option>Tabunok</option><option>KSTO</option><option>K138</option><option>K168</option><option>Hardware</option></select></label>
+            <label>Business Date<input id="businessDate" type="date" required /></label>
+          </div>
+          <div class="payment-grid" id="paymentFields"></div>
+          <label>Number of Customers<input id="customers" type="number" min="0" step="1" value="0" required /></label>
+          <div class="total-box"><span>IN TOTAL</span><strong id="reportedTotal">₱0.00</strong></div>
+          <label>Store Remarks<textarea id="storeRemarks" rows="2" maxlength="500" placeholder="Optional operational note"></textarea></label>
+          <div class="actions"><button type="button" id="saveDraftBtn" class="btn secondary">Save Draft</button><button type="submit" class="btn primary">Submit Report</button></div>
+        </form>
+      </article>
+
+      <article class="card checker-card">
+        <div class="card-head"><div><h3>Deposit Checker</h3><p>Validate the branch report against the amount actually received.</p></div><span class="badge pending" id="checkerStatus">Pending</span></div>
+        <div class="comparison">
+          <div><span>Reported Total</span><strong id="checkerReported">₱0.00</strong></div>
+          <label>Actual Received<input id="actualReceived" type="number" min="0" step="0.01" value="0" /></label>
+          <label>Reading / Reference<input id="reading" type="number" min="0" step="0.01" value="0" /></label>
+          <div><span>Difference</span><strong id="difference">₱0.00</strong></div>
+          <label>Received By<input id="receivedBy" type="text" maxlength="120" placeholder="Checker name" /></label>
+          <label>Verification Remarks<textarea id="checkerRemarks" rows="3" maxlength="500" placeholder="Required when there is a difference"></textarea></label>
+          <button id="verifyBtn" class="btn success">Verify Deposit</button>
+        </div>
+      </article>
+    </section>
+
+    <section class="lower-grid">
+      <article class="card table-card">
+        <div class="card-head"><div><h3>Branch Submissions</h3><p>Daily submission and reconciliation status by branch.</p></div><input id="filterDate" type="date" /></div>
+        <div class="table-wrap"><table><thead><tr><th>Branch</th><th>Date</th><th>Reported</th><th>Actual</th><th>Difference</th><th>Customers</th><th>Status</th></tr></thead><tbody id="reportRows"></tbody></table></div>
+      </article>
+      <article class="card summary-card">
+        <div class="card-head"><div><h3>Executive Daily View</h3><p>Consolidated branch detail for review.</p></div></div>
+        <div id="executiveSummary" class="summary-content"></div>
+      </article>
+    </section>
+  </main>
+</div>
+<div id="toast" class="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>
