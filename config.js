@@ -36,6 +36,11 @@ window.KSC_CONFIG = Object.freeze({
 (function loadOptionalSystemFeatures() {
   const extensions = [
     {
+      selector: 'script[data-ksc-report-reopen]',
+      source: './report-reopen.js?v=20260729-1625',
+      attribute: 'kscReportReopen'
+    },
+    {
       selector: 'script[data-ksc-password-change]',
       source: './password-change.js?v=20260729-1605',
       attribute: 'kscPasswordChange'
