@@ -3,6 +3,16 @@
 (function installRealtimeSynchronization() {
   if (window.KSC_REALTIME_CONTROLLER) return;
 
+  const FALLBACK_REFRESH_MS = 10 * 60 * 1000;
+  const REPORT_SELECT = [
+    'id', 'branch_id', 'business_date',
+    'cash', 'gcash', 'maya', 'credit', 'debit', 'cheque', 'salmon', 'other',
+    'reported_total', 'customer_count', 'store_remarks', 'status',
+    'submitted_by', 'submitted_at', 'created_at', 'updated_at',
+    'branches(id,code,name)',
+    'deposit_verifications(id,actual_received,reading,difference,remarks,verified_by,verified_at)'
+  ].join(',');
+
   const state = {
     channel: null,
     userId: null,
@@ -12,8 +22,7 @@
     refreshing: false,
     queued: false,
     entryDirty: false,
-    checkerDirty: false,
-    payload: null
+    checkerDirty: false
   };
   window.KSC_REALTIME_CONTROLLER = state;
 
@@ -93,8 +102,8 @@
   }
 
   function checkerSnapshot() {
-    if (!state.checkerDirty) return null;
     return {
+      dirty: state.checkerDirty,
       reportId: byId('checkerReportSelect')?.value || '',
       actual: byId('actualReceived')?.value || '0',
       reading: byId('reading')?.value || '0',
@@ -103,16 +112,16 @@
   }
 
   function restoreChecker(saved) {
-    if (!saved || !state.checkerDirty) return;
+    if (!saved?.reportId) return;
     const select = byId('checkerReportSelect');
     if (!select || ![...select.options].some((option) => option.value === saved.reportId)) return;
     select.value = saved.reportId;
     selectedCheckerReport = reports.find((report) => report.id === saved.reportId) || null;
+    loadCheckerReport();
+    if (!saved.dirty) return;
     byId('actualReceived').value = saved.actual;
     byId('reading').value = saved.reading;
     byId('checkerRemarks').value = saved.remarks;
-    byId('checkerReportLabel').textContent = selectedCheckerReport ? `${selectedCheckerReport.branches?.name || 'Unknown'} · ${formatDate(selectedCheckerReport.business_date)}` : 'No report selected';
-    byId('checkerReported').textContent = formatMoney(selectedCheckerReport?.reported_total || 0);
     updateCheckerDifference();
   }
 
@@ -132,8 +141,48 @@
 
   async function refreshAdministration(table) {
     if (currentView !== 'administration') return;
-    if (table === 'branches' && typeof loadBranchesAdministration === 'function' && hasPermission('manage_branches')) await loadBranchesAdministration();
-    if (table === 'profiles' && typeof loadUserAdministration === 'function' && hasPermission('manage_users')) await loadUserAdministration(true);
+    if (table === 'branches' && typeof loadBranchesAdministration === 'function' && hasPermission('manage_branches')) {
+      await loadBranchesAdministration();
+    }
+    if (table === 'profiles' && typeof loadUserAdministration === 'function' && hasPermission('manage_users')) {
+      await loadUserAdministration(true);
+    }
+  }
+
+  async function loadAuditData() {
+    if (!canReviewAudit()) {
+      audits = [];
+      renderAudits();
+      return;
+    }
+    const result = await db
+      .from('audit_logs')
+      .select('id,actor_id,actor_name,action,entity_type,entity_id,created_at')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (result.error) throw result.error;
+    audits = result.data || [];
+    renderAudits();
+  }
+
+  async function refreshCoreData(savedEntry, savedChecker) {
+    const reportDate = byId('filterDate')?.value || today;
+    const [branchResult, reportResult] = await Promise.all([
+      db.from('branches').select('id,code,name,active').eq('active', true).order('name'),
+      db.from('daily_reports').select(REPORT_SELECT).eq('business_date', reportDate).order('created_at', { ascending: false })
+    ]);
+    if (branchResult.error) throw branchResult.error;
+    if (reportResult.error) throw reportResult.error;
+
+    branches = branchResult.data || [];
+    reports = reportResult.data || [];
+    populateBranchOptions();
+    renderMetrics();
+    renderReports();
+    populateReportSelectors();
+    loadEntryReport();
+    restoreEntry(savedEntry);
+    restoreChecker(savedChecker);
   }
 
   async function refreshData(table = '', payload = null) {
@@ -147,30 +196,14 @@
 
     try {
       await refreshProfile(table, payload);
-      const reportDate = byId('filterDate')?.value || today;
-      const [branchResult, reportResult] = await Promise.all([
-        db.from('branches').select('id,code,name,active').eq('active', true).order('name'),
-        db.from('daily_reports').select('*,branches(id,code,name),deposit_verifications(id,actual_received,reading,difference,remarks,verified_by,verified_at)').eq('business_date', reportDate).order('created_at', { ascending: false })
-      ]);
-      if (branchResult.error) throw branchResult.error;
-      if (reportResult.error) throw reportResult.error;
 
-      branches = branchResult.data || [];
-      reports = reportResult.data || [];
-      if (canReviewAudit()) {
-        const auditResult = await db.from('audit_logs').select('id,actor_id,actor_name,action,entity_type,entity_id,created_at').order('created_at', { ascending: false }).limit(200);
-        if (auditResult.error) throw auditResult.error;
-        audits = auditResult.data || [];
-      } else audits = [];
+      if (table === 'audit_logs') {
+        if (currentView === 'audit') await loadAuditData();
+      } else {
+        await refreshCoreData(savedEntry, savedChecker);
+        if (currentView === 'audit') await loadAuditData();
+      }
 
-      populateBranchOptions();
-      renderMetrics();
-      renderReports();
-      populateReportSelectors();
-      renderAudits();
-      loadEntryReport();
-      restoreEntry(savedEntry);
-      restoreChecker(savedChecker);
       await refreshAdministration(table);
       setConnection(true, 'Connected securely to Supabase');
       setStatus('live', 'Live updates active');
@@ -181,17 +214,22 @@
       state.refreshing = false;
       if (state.queued) {
         state.queued = false;
-        window.setTimeout(() => refreshData(table, payload), 120);
+        window.setTimeout(() => refreshData(table, payload), 160);
       }
     }
   }
 
-  function schedule(table = '', payload = null, delay = 320) {
+  function schedule(table = '', payload = null, delay = 500) {
     window.clearTimeout(state.timer);
     state.timer = window.setTimeout(() => refreshData(table, payload), delay);
   }
 
   function relevant(table, payload) {
+    if (table === 'audit_logs') return currentView === 'audit' && canReviewAudit();
+    if (table === 'profiles') {
+      const changedId = payload?.new?.id || payload?.old?.id;
+      return changedId === session?.user?.id || (currentView === 'administration' && typeof hasPermission === 'function' && hasPermission('manage_users'));
+    }
     if (table !== 'daily_reports') return true;
     const selectedDate = byId('filterDate')?.value;
     const changedDate = payload?.new?.business_date || payload?.old?.business_date;
@@ -215,8 +253,21 @@
     setStatus('syncing', 'Connecting live updates…');
 
     let channel = db.channel(`ksc-live-${session.user.id}-${Date.now()}`);
-    ['daily_reports', 'deposit_verifications', 'branches', 'profiles', 'audit_logs'].forEach((table) => {
-      channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
+    const subscriptions = [
+      { table: 'daily_reports', filter: isStoreUser() && profile?.branch_id ? `branch_id=eq.${profile.branch_id}` : undefined },
+      { table: 'deposit_verifications' },
+      { table: 'branches' },
+      {
+        table: 'profiles',
+        filter: typeof hasPermission === 'function' && hasPermission('manage_users') ? undefined : `id=eq.${session.user.id}`
+      }
+    ];
+    if (canReviewAudit()) subscriptions.push({ table: 'audit_logs' });
+
+    subscriptions.forEach(({ table, filter }) => {
+      const config = { event: '*', schema: 'public', table };
+      if (filter) config.filter = filter;
+      channel = channel.on('postgres_changes', config, (payload) => {
         if (relevant(table, payload)) schedule(table, payload);
       });
     });
@@ -224,10 +275,10 @@
     state.channel = channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         setStatus('live', 'Live updates active');
-        schedule('', null, 80);
+        schedule('', null, 100);
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         setStatus('syncing', 'Reconnecting live updates…');
-        state.reconnectTimer = window.setTimeout(() => removeChannel().finally(startChannel), 2500);
+        state.reconnectTimer = window.setTimeout(() => removeChannel().finally(startChannel), 3000);
       } else if (status === 'CLOSED' && session?.user?.id) {
         setStatus('syncing', 'Reconnecting live updates…');
       }
@@ -255,24 +306,36 @@
     }
   }
 
+  function wrapViewNavigation() {
+    if (typeof setView !== 'function' || setView.kscRealtimeWrapped) return;
+    const original = setView;
+    const wrapped = function realtimeAwareSetView(view) {
+      original(view);
+      if (currentView === 'audit') schedule('audit_logs', null, 80);
+    };
+    wrapped.kscRealtimeWrapped = true;
+    setView = wrapped;
+  }
+
   function initialize() {
     installStyles();
     ensureStatus();
     installDirtyTracking();
+    wrapViewNavigation();
 
     state.fallbackTimer = window.setInterval(() => {
-      if (!document.hidden && navigator.onLine && session?.user?.id) schedule('', null, 0);
-    }, 15000);
+      if (!document.hidden && navigator.onLine && session?.user?.id) schedule('fallback', null, 0);
+    }, FALLBACK_REFRESH_MS);
 
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && session?.user?.id) { startChannel(); schedule('', null, 60); }
+      if (!document.hidden && session?.user?.id) { startChannel(); schedule('visibility', null, 100); }
     });
-    window.addEventListener('online', () => { setStatus('syncing', 'Reconnecting live updates…'); startChannel(); schedule('', null, 60); });
+    window.addEventListener('online', () => { setStatus('syncing', 'Reconnecting live updates…'); startChannel(); schedule('online', null, 100); });
     window.addEventListener('offline', () => setStatus('offline', 'Offline — updates paused'));
 
     db?.auth?.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') { removeChannel(); setStatus('offline', 'Signed out'); }
-      else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') window.setTimeout(startChannel, 150);
+      else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') window.setTimeout(startChannel, 180);
     });
 
     const wait = window.setInterval(() => {
