@@ -4,3 +4,46 @@
 .login-copyright{display:block;margin:2px 0 0;padding-top:13px;border-top:1px solid #edf1f5;color:#7c899b;font-size:10px;font-weight:500;line-height:1.45;text-align:center}.system-copyright{display:block;margin-top:24px;padding:17px 10px 2px;border-top:1px solid #dfe6ef;color:#7a8798;font-size:11px;font-weight:500;line-height:1.5;text-align:center}
 .form-message{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:1050px){.admin-grid{grid-template-columns:1fr}.permission-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:850px){.auth-brand-content h1{font-size:38px}}@media(max-width:760px){.admin-intro{display:grid}.admin-form-row,.permission-grid{grid-template-columns:1fr}.admin-actions{display:grid;grid-template-columns:1fr}.admin-actions .btn{width:100%}}@media(max-width:620px){.auth-brand-content h1{font-size:32px}.brand-logo.large{width:88px;height:88px}.system-copyright{margin-top:18px;padding-top:14px;font-size:10px}}
+
+/* Professional phone navigation */
+@media(max-width:620px){
+  body{overflow-x:hidden;background:#f4f7fb}
+  .app-shell{display:block;min-height:100vh}
+  .sidebar{position:sticky;top:0;height:62px;min-height:62px;padding:9px 12px;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;background:linear-gradient(135deg,#07182e 0%,#0b2341 70%,#0d315a 100%);border-bottom:1px solid rgba(255,255,255,.08);box-shadow:0 8px 26px rgba(3,17,34,.22);z-index:80}
+  .brand{flex:1;min-width:0;gap:8px;margin:0}
+  .brand-logo{width:36px;height:36px;flex:0 0 36px}
+  .brand>div{min-width:0}
+  .brand h1{margin:0;font-size:14px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand p{margin-top:3px;font-size:8px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .profile{display:flex!important;align-items:center;gap:6px;flex:0 0 auto;margin:0;padding:0;border:0}
+  .profile .avatar,.profile-copy{display:none}
+  .profile .icon-btn{width:34px;height:34px;flex:0 0 34px;border-radius:10px;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.22);color:#fff}
+  .profile .icon-btn:hover{background:rgba(255,255,255,.13)}
+  .sidebar nav{position:fixed;left:0;right:0;bottom:0;z-index:90;display:flex;grid-template-columns:none;gap:7px;padding:9px 10px calc(9px + env(safe-area-inset-bottom));overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;background:rgba(7,24,46,.97);border-top:1px solid rgba(255,255,255,.1);box-shadow:0 -10px 28px rgba(3,17,34,.22);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);scrollbar-width:none}
+  .sidebar nav::-webkit-scrollbar{display:none}
+  .nav-item{flex:0 0 auto;min-width:102px;min-height:47px;display:grid;place-items:center;padding:8px 12px;border-radius:12px;text-align:center;font-size:10.5px;line-height:1.25;color:#c9d7e9;scroll-snap-align:start}
+  .nav-item.active{background:linear-gradient(135deg,#2382ff,#0c60da);color:#fff;box-shadow:0 7px 18px rgba(0,81,183,.34)}
+  main{padding:15px 12px calc(82px + env(safe-area-inset-bottom))}
+  .topbar{gap:12px;margin-bottom:14px}
+  .topbar h2{font-size:22px;line-height:1.18}
+  .top-actions{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .top-actions>span{grid-column:1/-1;width:100%;font-size:11px}
+  .top-actions .btn{width:100%;min-height:42px}
+  .toolbar,.card,.metrics article{border-radius:14px}
+  .toast{left:50%;right:auto;bottom:calc(74px + env(safe-area-inset-bottom));width:calc(100vw - 24px);max-width:420px;text-align:center;transform:translate(-50%,10px);border-radius:12px}
+  .toast.show{transform:translate(-50%,0)}
+}
+
+@media(max-width:380px){
+  .sidebar{padding-left:9px;padding-right:9px}
+  .brand-logo{width:33px;height:33px;flex-basis:33px}
+  .brand h1{font-size:12.5px}
+  .brand p{display:none}
+  .profile{gap:4px}
+  .profile .icon-btn{width:31px;height:31px;flex-basis:31px}
+  .nav-item{min-width:94px;font-size:10px;padding-left:9px;padding-right:9px}
+  .metrics{grid-template-columns:1fr}
+  .top-actions{grid-template-columns:1fr}
+  .top-actions>span{grid-column:auto}
+  main{padding-left:10px;padding-right:10px}
+}
