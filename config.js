@@ -138,6 +138,11 @@ window.KSC_CONFIG = Object.freeze({
 (function loadOptionalSystemFeatures() {
   const extensions = [
     {
+      selector: 'script[data-ksc-admin-function-compat]',
+      source: './admin-function-compat.js?v=20260729-1748',
+      attribute: 'kscAdminFunctionCompat'
+    },
+    {
       selector: 'script[data-ksc-production-hardening]',
       source: './production-hardening.js?v=20260729-1718',
       attribute: 'kscProductionHardening'
