@@ -6,7 +6,7 @@ window.KSC_CONFIG = Object.freeze({
 });
 
 (function registerOfficialFavicon() {
-  const iconUrl = '/assets/kaking-store-cash-icon.svg?v=20260729-1317';
+  const iconUrl = './assets/kaking-store-cash-icon.svg?v=20260729-1332';
 
   function applyFavicon() {
     document
