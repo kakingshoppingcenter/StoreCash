@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Kaking Store Cash">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#fff0a8"/>
+      <stop offset="0.24" stop-color="#f8d65b"/>
+      <stop offset="0.55" stop-color="#c88a12"/>
+      <stop offset="0.78" stop-color="#f1bf36"/>
+      <stop offset="1" stop-color="#9f6308"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#000" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+  <g transform="translate(18 10)" fill="none" stroke="url(#gold)" stroke-linecap="round" stroke-linejoin="round" filter="url(#shadow)">
+    <path d="M18 77 C32 60 41 45 47 23 C60 43 74 48 86 22 C98 45 113 45 127 18 C136 44 151 48 169 27 C170 50 178 65 192 77" stroke-width="10"/>
+    <path d="M15 80 C53 95 153 95 195 80" stroke-width="9"/>
+    <path d="M38 92 C53 111 57 130 56 154 C55 176 45 197 30 214" stroke-width="8"/>
+    <path d="M180 92 C166 110 161 131 162 154 C163 177 172 197 188 214" stroke-width="8"/>
+    <path d="M75 92 L75 201" stroke-width="12"/>
+    <path d="M137 93 L137 201" stroke-width="12"/>
+    <path d="M75 143 L136 101" stroke-width="13"/>
+    <path d="M75 143 L141 199" stroke-width="13"/>
+    <path d="M107 96 L107 212" stroke-width="8"/>
+    <path d="M56 214 C70 203 84 203 99 215 C111 203 126 203 140 215 C156 203 171 204 187 217" stroke-width="8"/>
+    <circle cx="47" cy="23" r="6" fill="url(#gold)" stroke="none"/>
+    <circle cx="86" cy="22" r="6" fill="url(#gold)" stroke="none"/>
+    <circle cx="127" cy="18" r="6" fill="url(#gold)" stroke="none"/>
+    <circle cx="169" cy="27" r="6" fill="url(#gold)" stroke="none"/>
+  </g>
+</svg>
