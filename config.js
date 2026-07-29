@@ -174,7 +174,7 @@ window.KSC_CONFIG = Object.freeze({
     },
     {
       selector: 'script[data-ksc-dashboard-analytics]',
-      source: './dashboard-analytics.js?v=20260729-1912',
+      source: './dashboard-analytics.js?v=20260729-1927',
       attribute: 'kscDashboardAnalytics'
     }
   ];
