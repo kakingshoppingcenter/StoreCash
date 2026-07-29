@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 240" role="img" aria-labelledby="title desc">
+  <title id="title">Kaking Store Cash</title>
+  <desc id="desc">Gold Kaking Store Cash emblem and wordmark</desc>
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#fff0a8"/>
+      <stop offset="0.24" stop-color="#f8d65b"/>
+      <stop offset="0.55" stop-color="#c88a12"/>
+      <stop offset="0.78" stop-color="#f1bf36"/>
+      <stop offset="1" stop-color="#9f6308"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#000" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+  <g transform="translate(18 8)" fill="none" stroke="url(#gold)" stroke-linecap="round" stroke-linejoin="round" filter="url(#shadow)">
+    <path d="M34 78 C46 62 55 47 61 25 C73 44 87 50 98 24 C110 47 125 47 139 20 C147 47 163 50 180 29 C181 52 188 67 202 78" stroke-width="9"/>
+    <path d="M31 81 C67 95 166 95 205 81" stroke-width="8"/>
+    <path d="M50 91 C65 109 69 127 68 149 C67 169 57 188 43 204" stroke-width="7"/>
+    <path d="M187 92 C173 108 168 128 169 150 C170 170 179 188 193 203" stroke-width="7"/>
+    <path d="M88 92 L88 190" stroke-width="10"/>
+    <path d="M145 93 L145 190" stroke-width="10"/>
+    <path d="M88 138 L144 101" stroke-width="11"/>
+    <path d="M88 138 L148 188" stroke-width="11"/>
+    <path d="M117 96 L117 198" stroke-width="7"/>
+    <path d="M69 198 C81 190 94 190 107 201 C117 190 130 190 143 201 C156 190 171 191 185 203" stroke-width="7"/>
+    <circle cx="61" cy="25" r="5" fill="url(#gold)" stroke="none"/>
+    <circle cx="98" cy="24" r="5" fill="url(#gold)" stroke="none"/>
+    <circle cx="139" cy="20" r="5" fill="url(#gold)" stroke="none"/>
+    <circle cx="180" cy="29" r="5" fill="url(#gold)" stroke="none"/>
+  </g>
+  <text x="250" y="151" fill="url(#gold)" filter="url(#shadow)" font-family="Georgia, 'Times New Roman', serif" font-size="84" font-weight="700" letter-spacing="1">Kaking Store Cash</text>
+</svg>
