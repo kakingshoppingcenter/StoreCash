@@ -75,6 +75,7 @@ jobs:
         run: |
           supabase functions deploy admin-users \
             --project-ref "${SUPABASE_PROJECT_ID}" \
+            --no-verify-jwt \
             --use-api
 
       - name: Confirm deployed functions
