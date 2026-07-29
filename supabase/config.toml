@@ -1,4 +1,6 @@
 project_id = "cdmghdexjcqcmrwnbglw"
 
 [functions.admin-users]
-verify_jwt = true
+# The function validates the signed-in user's access token and admin permission itself.
+# Keep the legacy gateway JWT check disabled for compatibility with newer Supabase keys/signing systems.
+verify_jwt = false
