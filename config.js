@@ -11,17 +11,17 @@ window.KSC_CONFIG = Object.freeze({
   const style = document.createElement('style');
   style.id = 'secureSessionRestoreStyles';
   style.textContent = `
-    .secure-session-restore{position:fixed;inset:0;z-index:20000;display:grid;place-items:center;padding:24px;background:linear-gradient(145deg,#06172c 0%,#0b2e56 62%,#1268e8 150%);color:#fff;opacity:1;visibility:visible;transition:opacity .22s ease,visibility .22s ease}
-    .secure-session-restore:before,.secure-session-restore:after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.08)}
+    .secure-session-restore{position:fixed;inset:0;z-index:20000;display:grid;place-items:center;padding:24px;background:rgba(8,18,32,.22);-webkit-backdrop-filter:blur(14px) saturate(110%);backdrop-filter:blur(14px) saturate(110%);color:#fff;opacity:1;visibility:visible;transition:opacity .22s ease,visibility .22s ease}
+    .secure-session-restore:before,.secure-session-restore:after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.06);pointer-events:none}
     .secure-session-restore:before{width:620px;height:620px;right:-260px;top:-280px}
     .secure-session-restore:after{width:460px;height:460px;left:-260px;bottom:-270px}
     .secure-session-restore.finished{opacity:0;visibility:hidden;pointer-events:none}
-    .secure-session-card{position:relative;z-index:1;width:min(430px,100%);display:grid;justify-items:center;gap:14px;padding:34px 28px;text-align:center;border:1px solid rgba(255,255,255,.14);border-radius:20px;background:rgba(5,24,47,.68);box-shadow:0 28px 70px rgba(0,0,0,.22);backdrop-filter:blur(10px)}
-    .secure-session-logo{width:84px;height:84px;object-fit:contain;filter:drop-shadow(0 10px 18px rgba(0,0,0,.22))}
+    .secure-session-card{position:relative;z-index:1;width:min(430px,100%);display:grid;justify-items:center;gap:14px;padding:34px 28px;text-align:center;border:1px solid rgba(255,255,255,.12);border-radius:20px;background:rgba(5,24,47,.55);box-shadow:0 28px 70px rgba(0,0,0,.18);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+    .secure-session-logo{width:84px;height:84px;object-fit:contain;filter:drop-shadow(0 10px 18px rgba(0,0,0,.18))}
     .secure-session-card h2{margin:2px 0 0;font-size:23px;letter-spacing:-.025em}
-    .secure-session-card p{margin:0;color:#c8d8ea;font-size:12px;line-height:1.55}
+    .secure-session-card p{margin:0;color:#d8e3ef;font-size:12px;line-height:1.55}
     .secure-session-spinner{width:34px;height:34px;margin-top:4px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:secureSessionSpin .75s linear infinite}
-    .secure-session-reload{display:none;margin-top:3px;border:1px solid rgba(255,255,255,.28);border-radius:9px;padding:9px 14px;background:rgba(255,255,255,.09);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+    .secure-session-reload{display:none;margin-top:3px;border:1px solid rgba(255,255,255,.22);border-radius:9px;padding:9px 14px;background:rgba(255,255,255,.08);color:#fff;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
     .secure-session-reload.visible{display:inline-flex}
     @keyframes secureSessionSpin{to{transform:rotate(360deg)}}
   `;
@@ -130,6 +130,11 @@ window.KSC_CONFIG = Object.freeze({
 
 (function loadOptionalSystemFeatures() {
   const extensions = [
+    {
+      selector: 'script[data-ksc-production-hardening]',
+      source: './production-hardening.js?v=20260729-1718',
+      attribute: 'kscProductionHardening'
+    },
     {
       selector: 'script[data-ksc-report-reopen]',
       source: './report-reopen.js?v=20260729-1625',
