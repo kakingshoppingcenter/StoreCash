@@ -1,45 +1,123 @@
 # KakingStoreCash
 
-Professional daily store cash reporting and deposit reconciliation system.
+Professional daily branch cash reporting, deposit verification, and executive reconciliation system.
 
-## Included
+## Production features
 
-- Responsive daily store entry interface
-- Automatic total for CASH, G-CASH, MAYA, CREDIT, DEBIT, CHEQUE, SALMON, and OTHER
-- Customer-count tracking
-- Deposit verification with actual received amount and reading/reference
-- Automatic difference and status calculation
-- Mandatory remarks when a difference exists
-- Branch submission table and executive daily summary
-- CSV export
-- Browser-based demo storage for immediate testing
-- Supabase PostgreSQL production schema with Row Level Security
-- Store User, Checker, Executive, and Administrator role design
-- Submitted-report locking, unique branch/date control, and audit-ready tables
+- Secure Supabase email and password authentication
+- Store User, Deposit Checker, Executive Reviewer, and System Administrator roles
+- Branch-restricted access using Row Level Security
+- Daily entry for CASH, G-CASH, MAYA, CREDIT, DEBIT, CHEQUE, SALMON, and OTHER
+- Automatic reported total and customer-count tracking
+- Deposit checking against the actual amount received
+- Automatic difference and reconciliation status
+- Required verification remarks whenever a difference exists
+- One report per branch and business date
+- Submitted-report locking
+- Executive daily summary and CSV export
+- Immutable financial-record protection and audit trail
+- Responsive desktop, tablet, and mobile interface
 
-## Immediate preview
+## Supabase project connection
 
-The current version is a static web application. Open `index.html` locally, or enable GitHub Pages for the repository.
+The web application is configured to use the assigned Supabase project through `config.js`. Only the browser-safe publishable key is used. Never add a database password, secret key, or `service_role` key to this repository or to client-side code.
 
-## Recommended deployment
+## Required one-time database setup
 
-1. Make this repository **private** before adding real operational data or credentials.
-2. Import the repository into Vercel.
-3. Use the project name `kakingstorecash` to request the link `kakingstorecash.vercel.app`.
-4. Create a Supabase project.
-5. Run `supabase/schema.sql` in the Supabase SQL editor.
-6. Create authorized users and corresponding `profiles` records.
-7. Replace browser demo persistence with the Supabase client before production use.
-8. Test all roles, report locking, calculations, exports, and backup/restore procedures.
+1. Open the Supabase Dashboard.
+2. Go to **SQL Editor** and create a new query.
+3. Open `supabase/schema.sql` from this repository.
+4. Copy the entire file into the SQL Editor and select **Run**.
+5. Confirm that the following tables are created:
+   - `branches`
+   - `profiles`
+   - `daily_reports`
+   - `deposit_verifications`
+   - `audit_logs`
+6. Go to **Authentication > Users** and create the first system user.
+7. Return to the SQL Editor and promote that account using the command below.
+
+```sql
+update public.profiles
+set full_name = 'System Administrator',
+    role = 'admin',
+    active = true
+where id = (
+  select id from auth.users where email = 'YOUR-ADMIN-EMAIL'
+);
+```
+
+Replace `YOUR-ADMIN-EMAIL` with the actual email address created in Authentication.
+
+## Assign a store account
+
+Create the store account under **Authentication > Users**, then run:
+
+```sql
+update public.profiles
+set full_name = 'Parkmall Store User',
+    role = 'store_user',
+    branch_id = (select id from public.branches where code = 'KPM'),
+    active = true
+where id = (
+  select id from auth.users where email = 'STORE-EMAIL'
+);
+```
+
+Available initial branch codes:
+
+| Code | Branch |
+|---|---|
+| KPM | Parkmall |
+| KMAC | Mactan |
+| KTBK | Tabunok |
+| KSTO | KSTO |
+| K138 | K138 |
+| K168 | K168 |
+| KHWR | Hardware |
+
+## Assign other roles
+
+Use one of these role values:
+
+- `store_user`
+- `checker`
+- `executive`
+- `admin`
+
+Example checker activation:
+
+```sql
+update public.profiles
+set full_name = 'Deposit Checker',
+    role = 'checker',
+    branch_id = null,
+    active = true
+where id = (
+  select id from auth.users where email = 'CHECKER-EMAIL'
+);
+```
 
 ## Calculation rules
 
-- `Reported Total = CASH + G-CASH + MAYA + CREDIT + DEBIT + CHEQUE + SALMON + OTHER`
-- `Difference = Actual Received - Reported Total`
+```text
+Reported Total = CASH + G-CASH + MAYA + CREDIT + DEBIT + CHEQUE + SALMON + OTHER
+Difference = Actual Received - Reported Total
+```
+
 - Difference `0.00` = `Matched`
 - Non-zero difference = `With Difference`
-- No verification yet = `Pending Verification`
+- No verification = `Pending Verification`
 
-## Production warning
+## Deployment
 
-The included browser-storage mode is for UI demonstration and controlled testing only. It is not a replacement for Supabase authentication and database storage. Do not use the demo mode for live confidential financial data.
+Import this repository into Vercel and request the project name `kakingstorecash`. The expected address is `kakingstorecash.vercel.app` when that name is available.
+
+Before using real business data:
+
+- Change the GitHub repository to private.
+- Run the complete Supabase schema.
+- Create and activate authorized accounts.
+- Test each role using separate accounts.
+- Verify report locking, branch restrictions, calculations, exports, and audit records.
+- Configure database backups and recovery procedures.
