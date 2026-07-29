@@ -181,6 +181,11 @@ window.KSC_CONFIG = Object.freeze({
       selector: 'script[data-ksc-excel-export]',
       source: './export-excel.js?v=20260729-1938',
       attribute: 'kscExcelExport'
+    },
+    {
+      selector: 'script[data-ksc-realtime-sync]',
+      source: './realtime-sync.js?v=20260729-1950',
+      attribute: 'kscRealtimeSync'
     }
   ];
 
