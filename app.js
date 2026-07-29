@@ -1,27 +1,598 @@
-const paymentTypes=['CASH','G-CASH','MAYA','CREDIT','DEBIT','CHEQUE','SALMON','OTHER'];
-const currency=new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP'});
-const today=new Date().toISOString().slice(0,10);
-const seed=[
- {branch:'Parkmall',date:today,cash:65430,gcash:45210.75,maya:18750,credit:22300,debit:15120,cheque:8650,salmon:5260,other:4700,customers:957,actual:185420.75,reading:185420.75,status:'Matched'},
- {branch:'Mactan',date:today,cash:54310,gcash:33150,maya:12750,credit:17600,debit:10905.2,cheque:6800,salmon:4200,other:2600,customers:742,actual:142315.2,reading:142315.2,status:'Matched'},
- {branch:'Tabunok',date:today,cash:42150,gcash:22100,maya:8950,credit:11200,debit:7600,cheque:3500,salmon:2165.5,other:1100,customers:512,actual:98260.5,reading:98260.5,status:'With Difference'}
+'use strict';
+
+const PAYMENT_TYPES = [
+  { label: 'CASH', key: 'cash' },
+  { label: 'G-CASH', key: 'gcash' },
+  { label: 'MAYA', key: 'maya' },
+  { label: 'CREDIT', key: 'credit' },
+  { label: 'DEBIT', key: 'debit' },
+  { label: 'CHEQUE', key: 'cheque' },
+  { label: 'SALMON', key: 'salmon' },
+  { label: 'OTHER', key: 'other' }
 ];
-let reports=JSON.parse(localStorage.getItem('ksc_reports')||'null')||seed;
-const byId=id=>document.getElementById(id);
-const value=id=>Number(byId(id).value||0);
-const fieldKey=t=>t.toLowerCase().replace('-','');
-function showToast(message){const t=byId('toast');t.textContent=message;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
-function format(n){return currency.format(Number(n)||0)}
-function buildFields(){byId('paymentFields').innerHTML=paymentTypes.map(t=>`<label>${t}<input class="payment" id="p_${fieldKey(t)}" type="number" min="0" step="0.01" value="0" required></label>`).join('');document.querySelectorAll('.payment').forEach(i=>i.addEventListener('input',updateEntryTotals))}
-function paymentTotal(){return paymentTypes.reduce((s,t)=>s+value('p_'+fieldKey(t)),0)}
-function updateEntryTotals(){const total=paymentTotal();byId('reportedTotal').textContent=format(total);byId('checkerReported').textContent=format(total);updateDifference()}
-function updateDifference(){const d=value('actualReceived')-paymentTotal();byId('difference').textContent=format(d);byId('difference').style.color=d===0?'#138a45':'#b42318';byId('checkerStatus').textContent=d===0&&value('actualReceived')>0?'Matched':value('actualReceived')===0?'Pending':'With Difference';byId('checkerStatus').className='badge '+(d===0&&value('actualReceived')>0?'matched':value('actualReceived')===0?'pending':'different')}
-function persist(){localStorage.setItem('ksc_reports',JSON.stringify(reports))}
-function currentPayload(status='Submitted'){const item={branch:byId('branch').value,date:byId('businessDate').value,customers:value('customers'),actual:0,reading:0,status,storeRemarks:byId('storeRemarks').value};paymentTypes.forEach(t=>item[fieldKey(t)]=value('p_'+fieldKey(t)));return item}
-function reportTotal(r){return paymentTypes.reduce((s,t)=>s+Number(r[fieldKey(t)]||0),0)}
-function upsert(report){const i=reports.findIndex(r=>r.branch===report.branch&&r.date===report.date);if(i>=0)reports[i]={...reports[i],...report};else reports.unshift(report);persist();render()}
-function render(){const date=byId('filterDate').value||today;const list=reports.filter(r=>r.date===date);const rep=list.reduce((s,r)=>s+reportTotal(r),0),act=list.reduce((s,r)=>s+Number(r.actual||0),0),cust=list.reduce((s,r)=>s+Number(r.customers||0),0);byId('metricReported').textContent=format(rep);byId('metricActual').textContent=format(act);byId('metricDifference').textContent=format(act-rep);byId('metricCustomers').textContent=cust.toLocaleString();byId('reportRows').innerHTML=list.map(r=>{const d=Number(r.actual||0)-reportTotal(r);const status=r.status||'Pending';const cls=status==='Matched'?'matched':status==='With Difference'?'different':'pending';return `<tr><td>${r.branch}</td><td>${r.date}</td><td>${format(reportTotal(r))}</td><td>${format(r.actual)}</td><td style="color:${d===0?'#138a45':'#b42318'}">${format(d)}</td><td>${r.customers}</td><td><span class="badge ${cls}">${status}</span></td></tr>`}).join('')||'<tr><td colspan="7">No submissions for this date.</td></tr>';renderSummary(list[0])}
-function renderSummary(r){if(!r){byId('executiveSummary').innerHTML='<p>No branch report selected.</p>';return}const rows=paymentTypes.map(t=>`<div class="summary-row"><span>${t}</span><strong>${format(r[fieldKey(t)])}</strong></div>`).join('');const d=Number(r.actual||0)-reportTotal(r);byId('executiveSummary').innerHTML=`<div class="summary-title">${r.branch} · ${r.date}</div>${rows}<div class="summary-row"><span>IN TOTAL</span><strong>${format(reportTotal(r))}</strong></div><div class="summary-row"><span>Reading</span><strong>${format(r.reading)}</strong></div><div class="summary-row"><span>Difference</span><strong>${format(d)}</strong></div><div class="summary-row"><span>Customers</span><strong>${Number(r.customers).toLocaleString()}</strong></div>`}
-function loadSelected(){const r=reports.find(x=>x.branch===byId('branch').value&&x.date===byId('businessDate').value);paymentTypes.forEach(t=>byId('p_'+fieldKey(t)).value=r?.[fieldKey(t)]||0);byId('customers').value=r?.customers||0;byId('storeRemarks').value=r?.storeRemarks||'';byId('actualReceived').value=r?.actual||0;byId('reading').value=r?.reading||0;byId('receivedBy').value=r?.receivedBy||'';byId('checkerRemarks').value=r?.checkerRemarks||'';byId('entryStatus').textContent=r?.status||'Draft';updateEntryTotals()}
-function exportCsv(){const head=['Branch','Date',...paymentTypes,'Reported Total','Actual Received','Reading','Difference','Customers','Status'];const rows=reports.map(r=>[r.branch,r.date,...paymentTypes.map(t=>r[fieldKey(t)]||0),reportTotal(r),r.actual||0,r.reading||0,(r.actual||0)-reportTotal(r),r.customers||0,r.status||'Pending']);const csv=[head,...rows].map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`KakingStoreCash-${today}.csv`;a.click();URL.revokeObjectURL(a.href)}
-buildFields();byId('businessDate').value=today;byId('filterDate').value=today;byId('todayLabel').textContent=new Date().toLocaleDateString('en-PH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});byId('entryForm').addEventListener('submit',e=>{e.preventDefault();upsert(currentPayload('Pending Verification'));byId('entryStatus').textContent='Submitted';showToast('Daily report submitted successfully.')});byId('saveDraftBtn').addEventListener('click',()=>{upsert(currentPayload('Draft'));showToast('Draft saved on this device.')});byId('verifyBtn').addEventListener('click',()=>{const reported=paymentTotal(),actual=value('actualReceived'),diff=actual-reported,remarks=byId('checkerRemarks').value.trim();if(!byId('receivedBy').value.trim())return showToast('Enter the checker name.');if(diff!==0&&!remarks)return showToast('Remarks are required for a difference.');const base=currentPayload(diff===0?'Matched':'With Difference');upsert({...base,actual,reading:value('reading'),receivedBy:byId('receivedBy').value.trim(),checkerRemarks:remarks,verifiedAt:new Date().toISOString()});showToast('Deposit verification saved.')});['actualReceived','reading'].forEach(id=>byId(id).addEventListener('input',updateDifference));['branch','businessDate'].forEach(id=>byId(id).addEventListener('change',loadSelected));byId('filterDate').addEventListener('change',render);byId('exportBtn').addEventListener('click',exportCsv);document.querySelectorAll('.nav-item').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelector(`[data-view="${b.dataset.view}"]`);byId('pageTitle').textContent=b.textContent==='Dashboard'?'Daily Operations Dashboard':b.textContent;document.querySelector(b.dataset.view==='checker'?'.checker-card':b.dataset.view==='reports'?'.table-card':b.dataset.view==='summary'?'.summary-card':'.entry-card').scrollIntoView({behavior:'smooth',block:'start'})}));loadSelected();render();
+
+const ROLE_LABELS = {
+  store_user: 'Store User',
+  checker: 'Deposit Checker',
+  executive: 'Executive Reviewer',
+  admin: 'System Administrator'
+};
+
+const STATUS_LABELS = {
+  draft: 'Draft',
+  pending_verification: 'Pending Verification',
+  matched: 'Matched',
+  with_difference: 'With Difference',
+  reopened: 'Reopened'
+};
+
+const STATUS_CLASSES = {
+  draft: 'neutral',
+  pending_verification: 'pending',
+  matched: 'matched',
+  with_difference: 'different',
+  reopened: 'neutral'
+};
+
+const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
+const dateFormatter = new Intl.DateTimeFormat('en-PH', { year: 'numeric', month: 'short', day: '2-digit' });
+const dateTimeFormatter = new Intl.DateTimeFormat('en-PH', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+const today = new Date().toISOString().slice(0, 10);
+const byId = (id) => document.getElementById(id);
+
+let db = null;
+let session = null;
+let profile = null;
+let branches = [];
+let reports = [];
+let audits = [];
+let selectedEntryReport = null;
+let selectedCheckerReport = null;
+let currentView = 'dashboard';
+let loadingCount = 0;
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function formatMoney(value) {
+  return currency.format(Number(value) || 0);
+}
+
+function formatDate(value) {
+  if (!value) return '—';
+  return dateFormatter.format(new Date(`${value}T00:00:00`));
+}
+
+function formatDateTime(value) {
+  if (!value) return '—';
+  return dateTimeFormatter.format(new Date(value));
+}
+
+function setLoading(isLoading, message = 'Loading…') {
+  loadingCount = Math.max(0, loadingCount + (isLoading ? 1 : -1));
+  byId('loadingText').textContent = message;
+  byId('loadingOverlay').classList.toggle('hidden', loadingCount === 0);
+}
+
+function showToast(message, type = 'normal') {
+  const toast = byId('toast');
+  toast.textContent = message;
+  toast.className = `toast show ${type}`;
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => { toast.className = 'toast'; }, 3200);
+}
+
+function setConnection(connected, text) {
+  byId('connectionDot').className = `dot ${connected ? 'online' : 'offline'}`;
+  byId('connectionText').textContent = text;
+}
+
+function paymentTotal(source) {
+  return PAYMENT_TYPES.reduce((sum, item) => sum + Number(source[item.key] || 0), 0);
+}
+
+function verificationFor(report) {
+  const value = report?.deposit_verifications;
+  if (Array.isArray(value)) return value[0] || null;
+  return value || null;
+}
+
+function statusLabel(status) {
+  return STATUS_LABELS[status] || 'Unknown';
+}
+
+function statusBadge(status) {
+  return `<span class="badge ${STATUS_CLASSES[status] || 'neutral'}">${escapeHtml(statusLabel(status))}</span>`;
+}
+
+function buildPaymentFields() {
+  byId('paymentFields').innerHTML = PAYMENT_TYPES.map(({ label, key }) => (
+    `<label>${label}<div class="money-input"><span>₱</span><input class="payment" id="p_${key}" type="number" min="0" max="999999999999.99" step="0.01" value="0" required /></div></label>`
+  )).join('');
+  document.querySelectorAll('.payment').forEach((input) => input.addEventListener('input', updateEntryTotal));
+}
+
+function getEntryValues() {
+  const values = {};
+  PAYMENT_TYPES.forEach(({ key }) => { values[key] = Number(byId(`p_${key}`).value || 0); });
+  return values;
+}
+
+function updateEntryTotal() {
+  byId('reportedTotal').textContent = formatMoney(paymentTotal(getEntryValues()));
+}
+
+function getInitials(name) {
+  return String(name || 'KS').split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+}
+
+function isStoreUser() {
+  return profile?.role === 'store_user';
+}
+
+function canVerify() {
+  return ['checker', 'admin'].includes(profile?.role);
+}
+
+function canReviewAudit() {
+  return ['executive', 'admin'].includes(profile?.role);
+}
+
+function showAuth(message = '') {
+  byId('authScreen').classList.remove('hidden');
+  byId('appShell').classList.add('hidden');
+  byId('authMessage').textContent = message;
+}
+
+function showApp() {
+  byId('authScreen').classList.add('hidden');
+  byId('appShell').classList.remove('hidden');
+}
+
+function applyRoleVisibility() {
+  document.querySelectorAll('[data-roles]').forEach((element) => {
+    const roles = element.dataset.roles.split(',');
+    element.classList.toggle('hidden', !roles.includes(profile.role));
+  });
+  byId('profileName').textContent = profile.full_name;
+  byId('profileRole').textContent = ROLE_LABELS[profile.role] || profile.role;
+  byId('profileInitials').textContent = getInitials(profile.full_name);
+  if (isStoreUser()) currentView = 'dashboard';
+  setView(currentView);
+}
+
+function setView(view) {
+  const navButton = document.querySelector(`.nav-item[data-view="${view}"]:not(.hidden)`) || document.querySelector('.nav-item:not(.hidden)');
+  if (!navButton) return;
+  currentView = navButton.dataset.view;
+  document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('active', button === navButton));
+  document.querySelectorAll('[data-section]').forEach((section) => section.classList.add('view-hidden'));
+  const viewSections = {
+    dashboard: ['dashboard', 'reports', 'summary'],
+    entry: ['entry'],
+    checker: ['checker', 'reports'],
+    reports: ['reports'],
+    summary: ['summary', 'reports'],
+    audit: ['audit']
+  };
+  (viewSections[currentView] || []).forEach((sectionName) => {
+    document.querySelectorAll(`[data-section="${sectionName}"]`).forEach((section) => section.classList.remove('view-hidden'));
+  });
+  const titleMap = {
+    dashboard: 'Daily Operations Dashboard',
+    entry: 'Daily Store Entry',
+    checker: 'Deposit Verification',
+    reports: 'Branch Reports',
+    summary: 'Executive Summary',
+    audit: 'Audit Trail'
+  };
+  byId('pageTitle').textContent = titleMap[currentView] || 'KakingStoreCash';
+}
+
+function populateBranchOptions() {
+  const previousValue = byId('branch').value;
+  const allowed = isStoreUser() ? branches.filter((branch) => branch.id === profile.branch_id) : branches;
+  byId('branch').innerHTML = allowed.map((branch) => `<option value="${branch.id}">${escapeHtml(branch.name)}</option>`).join('');
+  if (allowed.some((branch) => branch.id === previousValue)) byId('branch').value = previousValue;
+  byId('branch').disabled = isStoreUser();
+}
+
+function reportLabel(report) {
+  return `${report.branches?.name || 'Unknown Branch'} · ${formatDate(report.business_date)} · ${statusLabel(report.status)}`;
+}
+
+function populateReportSelectors() {
+  const checkerReports = reports.filter((report) => report.status !== 'draft');
+  const checkerOptions = checkerReports.map((report) => `<option value="${report.id}">${escapeHtml(reportLabel(report))}</option>`).join('');
+  byId('checkerReportSelect').innerHTML = `<option value="">Select submitted report</option>${checkerOptions}`;
+  const summaryOptions = reports.map((report) => `<option value="${report.id}">${escapeHtml(reportLabel(report))}</option>`).join('');
+  byId('summaryReportSelect').innerHTML = `<option value="">Select branch report</option>${summaryOptions}`;
+  if (selectedCheckerReport && checkerReports.some((report) => report.id === selectedCheckerReport.id)) {
+    byId('checkerReportSelect').value = selectedCheckerReport.id;
+  } else {
+    selectedCheckerReport = checkerReports[0] || null;
+    byId('checkerReportSelect').value = selectedCheckerReport?.id || '';
+  }
+  byId('summaryReportSelect').value = reports[0]?.id || '';
+  loadCheckerReport();
+  renderSummary(reports[0] || null);
+}
+
+function renderMetrics() {
+  const reported = reports.reduce((sum, report) => sum + Number(report.reported_total || paymentTotal(report)), 0);
+  const actual = reports.reduce((sum, report) => sum + Number(verificationFor(report)?.actual_received || 0), 0);
+  const customers = reports.reduce((sum, report) => sum + Number(report.customer_count || 0), 0);
+  const difference = reports.reduce((sum, report) => sum + Number(verificationFor(report)?.difference || 0), 0);
+  byId('metricReported').textContent = formatMoney(reported);
+  byId('metricActual').textContent = formatMoney(actual);
+  byId('metricDifference').textContent = formatMoney(difference);
+  byId('metricDifference').className = difference === 0 ? 'positive' : 'negative';
+  byId('metricCustomers').textContent = customers.toLocaleString('en-PH');
+}
+
+function renderReports() {
+  const query = byId('reportSearch').value.trim().toLowerCase();
+  const filtered = reports.filter((report) => {
+    const searchable = `${report.branches?.name || ''} ${report.business_date} ${statusLabel(report.status)}`.toLowerCase();
+    return searchable.includes(query);
+  });
+  byId('reportRows').innerHTML = filtered.map((report) => {
+    const verification = verificationFor(report);
+    const difference = verification ? Number(verification.difference || 0) : null;
+    return `<tr data-report-id="${report.id}">
+      <td><strong>${escapeHtml(report.branches?.name || 'Unknown')}</strong></td>
+      <td>${escapeHtml(formatDate(report.business_date))}</td>
+      <td>${escapeHtml(formatMoney(report.reported_total))}</td>
+      <td>${verification ? escapeHtml(formatMoney(verification.actual_received)) : '—'}</td>
+      <td class="${difference === null ? '' : difference === 0 ? 'positive' : 'negative'}">${difference === null ? '—' : escapeHtml(formatMoney(difference))}</td>
+      <td>${Number(report.customer_count || 0).toLocaleString('en-PH')}</td>
+      <td>${statusBadge(report.status)}</td>
+      <td>${escapeHtml(formatDateTime(report.submitted_at || report.created_at))}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" class="empty-state">No reports found for the selected date.</td></tr>';
+  document.querySelectorAll('#reportRows tr[data-report-id]').forEach((row) => {
+    row.addEventListener('click', () => {
+      const report = reports.find((item) => item.id === row.dataset.reportId);
+      if (!report) return;
+      selectedCheckerReport = report;
+      byId('checkerReportSelect').value = report.id;
+      byId('summaryReportSelect').value = report.id;
+      loadCheckerReport();
+      renderSummary(report);
+      showToast(`Selected ${report.branches?.name || 'branch'} report.`);
+    });
+  });
+}
+
+function renderSummary(report) {
+  if (!report) {
+    byId('executiveSummary').innerHTML = '<div class="empty-state">Select a branch report to view its complete payment breakdown.</div>';
+    return;
+  }
+  const verification = verificationFor(report);
+  const rows = PAYMENT_TYPES.map(({ label, key }) => `<div class="summary-row"><span>${label}</span><strong>${escapeHtml(formatMoney(report[key]))}</strong></div>`).join('');
+  byId('executiveSummary').innerHTML = `
+    <div class="summary-title">${escapeHtml(report.branches?.name || 'Unknown Branch')} · ${escapeHtml(formatDate(report.business_date))}</div>
+    ${rows}
+    <div class="summary-row total"><span>IN TOTAL</span><strong>${escapeHtml(formatMoney(report.reported_total))}</strong></div>
+    <div class="summary-row"><span>Reading</span><strong>${verification ? escapeHtml(formatMoney(verification.reading)) : '—'}</strong></div>
+    <div class="summary-row"><span>Actual Received</span><strong>${verification ? escapeHtml(formatMoney(verification.actual_received)) : '—'}</strong></div>
+    <div class="summary-row"><span>Difference</span><strong class="${verification && Number(verification.difference) !== 0 ? 'negative' : 'positive'}">${verification ? escapeHtml(formatMoney(verification.difference)) : '—'}</strong></div>
+    <div class="summary-row"><span>Customers</span><strong>${Number(report.customer_count || 0).toLocaleString('en-PH')}</strong></div>
+    <div class="summary-row"><span>Status</span><strong>${statusLabel(report.status)}</strong></div>`;
+}
+
+function renderAudits() {
+  if (!canReviewAudit()) {
+    byId('auditRows').innerHTML = '<tr><td colspan="5" class="empty-state">Audit access is restricted.</td></tr>';
+    return;
+  }
+  byId('auditRows').innerHTML = audits.map((audit) => `<tr>
+    <td>${escapeHtml(formatDateTime(audit.created_at))}</td>
+    <td>${escapeHtml(audit.actor_name || 'System')}</td>
+    <td>${escapeHtml(audit.action)}</td>
+    <td>${escapeHtml(audit.entity_type)}</td>
+    <td><code>${escapeHtml(audit.entity_id || '—')}</code></td>
+  </tr>`).join('') || '<tr><td colspan="5" class="empty-state">No audit records found.</td></tr>';
+}
+
+function setEntryLocked(locked) {
+  document.querySelectorAll('#entryForm input, #entryForm select, #entryForm textarea').forEach((element) => {
+    if (element.id === 'businessDate' || element.id === 'branch') return;
+    element.disabled = locked;
+  });
+  byId('saveDraftBtn').disabled = locked;
+  byId('submitReportBtn').disabled = locked;
+  byId('clearEntryBtn').disabled = locked;
+  byId('entryLockMessage').classList.toggle('hidden', !locked);
+}
+
+function clearEntryForm() {
+  selectedEntryReport = null;
+  PAYMENT_TYPES.forEach(({ key }) => { byId(`p_${key}`).value = '0'; });
+  byId('customers').value = '0';
+  byId('storeRemarks').value = '';
+  byId('entryStatus').textContent = 'New Report';
+  byId('entryStatus').className = 'badge neutral';
+  setEntryLocked(false);
+  updateEntryTotal();
+}
+
+function loadEntryReport() {
+  const branchId = byId('branch').value;
+  const businessDate = byId('businessDate').value;
+  selectedEntryReport = reports.find((report) => report.branch_id === branchId && report.business_date === businessDate) || null;
+  if (!selectedEntryReport) {
+    clearEntryForm();
+    return;
+  }
+  PAYMENT_TYPES.forEach(({ key }) => { byId(`p_${key}`).value = selectedEntryReport[key] || 0; });
+  byId('customers').value = selectedEntryReport.customer_count || 0;
+  byId('storeRemarks').value = selectedEntryReport.store_remarks || '';
+  byId('entryStatus').textContent = statusLabel(selectedEntryReport.status);
+  byId('entryStatus').className = `badge ${STATUS_CLASSES[selectedEntryReport.status] || 'neutral'}`;
+  const locked = !['draft', 'reopened'].includes(selectedEntryReport.status);
+  setEntryLocked(locked);
+  updateEntryTotal();
+}
+
+function loadCheckerReport() {
+  const id = byId('checkerReportSelect').value;
+  selectedCheckerReport = reports.find((report) => report.id === id) || null;
+  const verification = verificationFor(selectedCheckerReport);
+  byId('checkerReportLabel').textContent = selectedCheckerReport ? `${selectedCheckerReport.branches?.name || 'Unknown'} · ${formatDate(selectedCheckerReport.business_date)}` : 'No report selected';
+  byId('checkerReported').textContent = formatMoney(selectedCheckerReport?.reported_total || 0);
+  byId('actualReceived').value = verification?.actual_received ?? 0;
+  byId('reading').value = verification?.reading ?? 0;
+  byId('checkerRemarks').value = verification?.remarks ?? '';
+  byId('receivedBy').value = profile?.full_name || '';
+  updateCheckerDifference();
+  const disabled = !canVerify() || !selectedCheckerReport;
+  ['actualReceived', 'reading', 'checkerRemarks', 'verifyBtn'].forEach((idValue) => { byId(idValue).disabled = disabled; });
+}
+
+function updateCheckerDifference() {
+  const reported = Number(selectedCheckerReport?.reported_total || 0);
+  const actual = Number(byId('actualReceived').value || 0);
+  const difference = actual - reported;
+  byId('difference').textContent = formatMoney(difference);
+  byId('difference').className = difference === 0 ? 'positive' : 'negative';
+  let label = 'Select Report';
+  let className = 'pending';
+  if (selectedCheckerReport) {
+    if (!actual && !verificationFor(selectedCheckerReport)) label = 'Pending';
+    else if (difference === 0) { label = 'Matched'; className = 'matched'; }
+    else { label = 'With Difference'; className = 'different'; }
+  }
+  byId('checkerStatus').textContent = label;
+  byId('checkerStatus').className = `badge ${className}`;
+}
+
+function entryPayload(status) {
+  const values = getEntryValues();
+  return {
+    branch_id: byId('branch').value,
+    business_date: byId('businessDate').value,
+    ...values,
+    customer_count: Number(byId('customers').value || 0),
+    store_remarks: byId('storeRemarks').value.trim() || null,
+    status,
+    submitted_by: session.user.id,
+    submitted_at: status === 'pending_verification' ? new Date().toISOString() : selectedEntryReport?.submitted_at || null
+  };
+}
+
+function validateEntry() {
+  if (!byId('branch').value || !byId('businessDate').value) return 'Branch and business date are required.';
+  if (!Number.isInteger(Number(byId('customers').value)) || Number(byId('customers').value) < 0) return 'Customer count must be a non-negative whole number.';
+  const invalidAmount = PAYMENT_TYPES.some(({ key }) => Number(byId(`p_${key}`).value) < 0 || !Number.isFinite(Number(byId(`p_${key}`).value)));
+  if (invalidAmount) return 'Payment amounts must be valid non-negative numbers.';
+  return '';
+}
+
+async function saveEntry(status) {
+  const validationMessage = validateEntry();
+  if (validationMessage) return showToast(validationMessage, 'error');
+  setLoading(true, status === 'draft' ? 'Saving draft…' : 'Submitting report…');
+  try {
+    const payload = entryPayload(status);
+    const query = selectedEntryReport ? db.from('daily_reports').update(payload).eq('id', selectedEntryReport.id) : db.from('daily_reports').insert(payload);
+    const { error } = await query;
+    if (error) throw error;
+    showToast(status === 'draft' ? 'Draft saved securely.' : 'Daily report submitted successfully.', 'success');
+    await loadData();
+    loadEntryReport();
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || 'Unable to save the report.', 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function saveVerification() {
+  if (!selectedCheckerReport) return showToast('Select a submitted report first.', 'error');
+  const actual = Number(byId('actualReceived').value || 0);
+  const reading = Number(byId('reading').value || 0);
+  const difference = actual - Number(selectedCheckerReport.reported_total || 0);
+  const remarks = byId('checkerRemarks').value.trim();
+  if (actual < 0 || reading < 0) return showToast('Actual received and reading cannot be negative.', 'error');
+  if (difference !== 0 && !remarks) return showToast('Verification remarks are required when there is a difference.', 'error');
+  setLoading(true, 'Saving verification…');
+  try {
+    const payload = {
+      report_id: selectedCheckerReport.id,
+      actual_received: actual,
+      reading,
+      remarks: remarks || null,
+      verified_by: session.user.id,
+      verified_at: new Date().toISOString()
+    };
+    const { error } = await db.from('deposit_verifications').upsert(payload, { onConflict: 'report_id' });
+    if (error) throw error;
+    showToast('Deposit verification saved successfully.', 'success');
+    await loadData();
+  } catch (error) {
+    console.error(error);
+    showToast(error.message || 'Unable to save verification.', 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function loadProfile() {
+  const { data, error } = await db.from('profiles').select('id,full_name,role,branch_id,active').eq('id', session.user.id).single();
+  if (error) throw error;
+  if (!data.active) throw new Error('Your account is not active. Contact the system administrator.');
+  profile = data;
+}
+
+async function loadData() {
+  setLoading(true, 'Loading branch reports…');
+  try {
+    const reportDate = byId('filterDate').value || today;
+    const [branchResult, reportResult] = await Promise.all([
+      db.from('branches').select('id,code,name,active').eq('active', true).order('name'),
+      db.from('daily_reports')
+        .select('*,branches(id,code,name),deposit_verifications(id,actual_received,reading,difference,remarks,verified_by,verified_at)')
+        .eq('business_date', reportDate)
+        .order('created_at', { ascending: false })
+    ]);
+    if (branchResult.error) throw branchResult.error;
+    if (reportResult.error) throw reportResult.error;
+    branches = branchResult.data || [];
+    reports = reportResult.data || [];
+    if (canReviewAudit()) {
+      const { data, error } = await db.from('audit_logs').select('id,actor_id,actor_name,action,entity_type,entity_id,created_at').order('created_at', { ascending: false }).limit(200);
+      if (error) throw error;
+      audits = data || [];
+    } else audits = [];
+    populateBranchOptions();
+    renderMetrics();
+    renderReports();
+    populateReportSelectors();
+    renderAudits();
+    loadEntryReport();
+    setConnection(true, 'Connected securely to Supabase');
+    byId('setupNotice').classList.add('hidden');
+  } catch (error) {
+    console.error(error);
+    setConnection(false, 'Supabase setup or connection error');
+    if (/relation .* does not exist|Could not find the table|schema cache/i.test(error.message || '')) byId('setupNotice').classList.remove('hidden');
+    showToast(error.message || 'Unable to load system data.', 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function startApplication(currentSession) {
+  session = currentSession;
+  if (!session) {
+    profile = null;
+    reports = [];
+    showAuth();
+    return;
+  }
+  setLoading(true, 'Authorizing account…');
+  try {
+    await loadProfile();
+    applyRoleVisibility();
+    showApp();
+    await loadData();
+  } catch (error) {
+    console.error(error);
+    await db.auth.signOut();
+    showAuth(error.message || 'Your account is not authorized for this system.');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function signIn(event) {
+  event.preventDefault();
+  byId('authMessage').textContent = '';
+  byId('loginBtn').disabled = true;
+  byId('loginBtn').textContent = 'Signing In…';
+  try {
+    const { data, error } = await db.auth.signInWithPassword({ email: byId('loginEmail').value.trim(), password: byId('loginPassword').value });
+    if (error) throw error;
+    await startApplication(data.session);
+  } catch (error) {
+    byId('authMessage').textContent = error.message || 'Sign-in failed.';
+  } finally {
+    byId('loginBtn').disabled = false;
+    byId('loginBtn').textContent = 'Sign In';
+  }
+}
+
+async function signOut() {
+  setLoading(true, 'Signing out…');
+  try {
+    await db.auth.signOut();
+    showAuth('You have signed out successfully.');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function exportCsv() {
+  if (!reports.length) return showToast('There are no reports to export.', 'error');
+  const headers = ['Branch', 'Date', ...PAYMENT_TYPES.map((item) => item.label), 'Reported Total', 'Actual Received', 'Reading', 'Difference', 'Customers', 'Status', 'Store Remarks', 'Verification Remarks'];
+  const rows = reports.map((report) => {
+    const verification = verificationFor(report);
+    return [report.branches?.name || '', report.business_date, ...PAYMENT_TYPES.map(({ key }) => report[key] || 0), report.reported_total || 0, verification?.actual_received || '', verification?.reading || '', verification?.difference ?? '', report.customer_count || 0, statusLabel(report.status), report.store_remarks || '', verification?.remarks || ''];
+  });
+  const csv = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(',')).join('\n');
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  link.download = `KakingStoreCash-${byId('filterDate').value || today}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function bindEvents() {
+  byId('loginForm').addEventListener('submit', signIn);
+  byId('logoutBtn').addEventListener('click', signOut);
+  byId('refreshBtn').addEventListener('click', loadData);
+  byId('exportBtn').addEventListener('click', exportCsv);
+  byId('filterDate').addEventListener('change', async () => { byId('businessDate').value = byId('filterDate').value; await loadData(); });
+  byId('reportSearch').addEventListener('input', renderReports);
+  byId('businessDate').addEventListener('change', async () => { byId('filterDate').value = byId('businessDate').value; await loadData(); });
+  byId('branch').addEventListener('change', loadEntryReport);
+  byId('clearEntryBtn').addEventListener('click', clearEntryForm);
+  byId('saveDraftBtn').addEventListener('click', () => saveEntry('draft'));
+  byId('entryForm').addEventListener('submit', (event) => { event.preventDefault(); saveEntry('pending_verification'); });
+  byId('checkerReportSelect').addEventListener('change', loadCheckerReport);
+  byId('actualReceived').addEventListener('input', updateCheckerDifference);
+  byId('verifyBtn').addEventListener('click', saveVerification);
+  byId('summaryReportSelect').addEventListener('change', () => renderSummary(reports.find((report) => report.id === byId('summaryReportSelect').value) || null));
+  document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
+}
+
+async function initialize() {
+  buildPaymentFields();
+  bindEvents();
+  byId('businessDate').value = today;
+  byId('filterDate').value = today;
+  byId('todayLabel').textContent = new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const config = window.KSC_CONFIG;
+  if (!window.supabase?.createClient || !config?.supabaseUrl || !config?.supabasePublishableKey) {
+    showAuth('Supabase configuration is missing. Contact the system administrator.');
+    return;
+  }
+  db = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+  const { data: { session: currentSession } } = await db.auth.getSession();
+  await startApplication(currentSession);
+  db.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') showAuth(); });
+}
+
+initialize().catch((error) => {
+  console.error(error);
+  showAuth('The application could not start. Contact the system administrator.');
+});
