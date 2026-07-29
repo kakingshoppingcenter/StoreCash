@@ -33,19 +33,34 @@ window.KSC_CONFIG = Object.freeze({
   }
 })();
 
-(function loadProtectedAdministratorDeletion() {
-  function loadExtension() {
-    if (document.querySelector('script[data-ksc-admin-delete]')) return;
-    const script = document.createElement('script');
-    script.src = './admin-delete.js?v=20260729-1503';
-    script.dataset.kscAdminDelete = 'true';
-    script.async = true;
-    document.body.appendChild(script);
+(function loadOptionalSystemFeatures() {
+  const extensions = [
+    {
+      selector: 'script[data-ksc-password-change]',
+      source: './password-change.js?v=20260729-1605',
+      attribute: 'kscPasswordChange'
+    },
+    {
+      selector: 'script[data-ksc-admin-delete]',
+      source: './admin-delete.js?v=20260729-1503',
+      attribute: 'kscAdminDelete'
+    }
+  ];
+
+  function loadExtensions() {
+    extensions.forEach((extension) => {
+      if (document.querySelector(extension.selector)) return;
+      const script = document.createElement('script');
+      script.src = extension.source;
+      script.dataset[extension.attribute] = 'true';
+      script.async = false;
+      document.body.appendChild(script);
+    });
   }
 
   if (document.readyState === 'complete') {
-    window.setTimeout(loadExtension, 0);
+    window.setTimeout(loadExtensions, 0);
   } else {
-    window.addEventListener('load', loadExtension, { once: true });
+    window.addEventListener('load', loadExtensions, { once: true });
   }
 })();
