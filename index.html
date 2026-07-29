@@ -4,82 +4,174 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#0b1f3a" />
+  <meta name="description" content="KakingStoreCash daily branch sales reporting and deposit reconciliation system." />
   <title>KakingStoreCash</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<div class="app-shell">
-  <aside class="sidebar">
-    <div class="brand"><div class="brand-mark">K</div><div><h1>KakingStoreCash</h1><p>Daily Cash & Deposit Control</p></div></div>
-    <nav>
-      <button class="nav-item active" data-view="dashboard">Dashboard</button>
-      <button class="nav-item" data-view="entry">Daily Entry</button>
-      <button class="nav-item" data-view="checker">Deposit Checker</button>
-      <button class="nav-item" data-view="reports">Branch Reports</button>
-      <button class="nav-item" data-view="summary">Executive Summary</button>
-    </nav>
-    <div class="profile"><div class="avatar">KS</div><div><strong>Store Operations</strong><span>Authorized User</span></div></div>
-  </aside>
-
-  <main>
-    <header class="topbar">
-      <div><p class="eyebrow">Finance Control Center</p><h2 id="pageTitle">Daily Operations Dashboard</h2></div>
-      <div class="top-actions"><span id="todayLabel"></span><button id="exportBtn" class="btn secondary">Export CSV</button></div>
-    </header>
-
-    <section class="metrics">
-      <article><span>Reported Total</span><strong id="metricReported">₱0.00</strong><small>Selected day</small></article>
-      <article><span>Actual Received</span><strong id="metricActual">₱0.00</strong><small>Verified deposits</small></article>
-      <article><span>Difference</span><strong id="metricDifference">₱0.00</strong><small>Actual minus reported</small></article>
-      <article><span>Customers</span><strong id="metricCustomers">0</strong><small>Total transactions</small></article>
-    </section>
-
-    <section class="workspace">
-      <article class="card entry-card">
-        <div class="card-head"><div><h3>Daily Store Entry</h3><p>Encode the branch payment summary for the selected business date.</p></div><span class="badge neutral" id="entryStatus">Draft</span></div>
-        <form id="entryForm">
-          <div class="form-grid two">
-            <label>Branch<select id="branch" required><option>Parkmall</option><option>Mactan</option><option>Tabunok</option><option>KSTO</option><option>K138</option><option>K168</option><option>Hardware</option></select></label>
-            <label>Business Date<input id="businessDate" type="date" required /></label>
-          </div>
-          <div class="payment-grid" id="paymentFields"></div>
-          <label>Number of Customers<input id="customers" type="number" min="0" step="1" value="0" required /></label>
-          <div class="total-box"><span>IN TOTAL</span><strong id="reportedTotal">₱0.00</strong></div>
-          <label>Store Remarks<textarea id="storeRemarks" rows="2" maxlength="500" placeholder="Optional operational note"></textarea></label>
-          <div class="actions"><button type="button" id="saveDraftBtn" class="btn secondary">Save Draft</button><button type="submit" class="btn primary">Submit Report</button></div>
-        </form>
-      </article>
-
-      <article class="card checker-card">
-        <div class="card-head"><div><h3>Deposit Checker</h3><p>Validate the branch report against the amount actually received.</p></div><span class="badge pending" id="checkerStatus">Pending</span></div>
-        <div class="comparison">
-          <div><span>Reported Total</span><strong id="checkerReported">₱0.00</strong></div>
-          <label>Actual Received<input id="actualReceived" type="number" min="0" step="0.01" value="0" /></label>
-          <label>Reading / Reference<input id="reading" type="number" min="0" step="0.01" value="0" /></label>
-          <div><span>Difference</span><strong id="difference">₱0.00</strong></div>
-          <label>Received By<input id="receivedBy" type="text" maxlength="120" placeholder="Checker name" /></label>
-          <label>Verification Remarks<textarea id="checkerRemarks" rows="3" maxlength="500" placeholder="Required when there is a difference"></textarea></label>
-          <button id="verifyBtn" class="btn success">Verify Deposit</button>
+  <section id="authScreen" class="auth-screen">
+    <div class="auth-brand-panel">
+      <div class="auth-brand-content">
+        <div class="brand-mark large">K</div>
+        <p class="eyebrow light">Daily Finance Control</p>
+        <h1>KakingStoreCash</h1>
+        <p>Secure daily branch reporting, deposit validation, and executive reconciliation in one professional workspace.</p>
+        <div class="auth-features">
+          <span>Automatic payment totals</span>
+          <span>Deposit variance control</span>
+          <span>Branch-level access</span>
+          <span>Complete audit trail</span>
         </div>
-      </article>
-    </section>
+      </div>
+    </div>
+    <div class="auth-form-panel">
+      <form id="loginForm" class="login-card">
+        <div class="login-heading">
+          <p class="eyebrow">Authorized Access</p>
+          <h2>Sign in to continue</h2>
+          <p>Use the company account assigned by your system administrator.</p>
+        </div>
+        <label>Email address<input id="loginEmail" type="email" autocomplete="username" required /></label>
+        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required /></label>
+        <button id="loginBtn" class="btn primary full" type="submit">Sign In</button>
+        <p id="authMessage" class="form-message" aria-live="polite"></p>
+        <p class="security-note">Access is recorded. Never share your password or verification account.</p>
+      </form>
+    </div>
+  </section>
 
-    <section class="lower-grid">
-      <article class="card table-card">
-        <div class="card-head"><div><h3>Branch Submissions</h3><p>Daily submission and reconciliation status by branch.</p></div><input id="filterDate" type="date" /></div>
-        <div class="table-wrap"><table><thead><tr><th>Branch</th><th>Date</th><th>Reported</th><th>Actual</th><th>Difference</th><th>Customers</th><th>Status</th></tr></thead><tbody id="reportRows"></tbody></table></div>
-      </article>
-      <article class="card summary-card">
-        <div class="card-head"><div><h3>Executive Daily View</h3><p>Consolidated branch detail for review.</p></div></div>
-        <div id="executiveSummary" class="summary-content"></div>
-      </article>
-    </section>
-  </main>
-</div>
-<div id="toast" class="toast" role="status"></div>
-<script src="app.js"></script>
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">K</div>
+        <div><h1>KakingStoreCash</h1><p>Daily Cash & Deposit Control</p></div>
+      </div>
+      <nav id="mainNav" aria-label="Primary navigation">
+        <button class="nav-item active" data-view="dashboard" data-roles="store_user,checker,executive,admin">Dashboard</button>
+        <button class="nav-item" data-view="entry" data-roles="store_user,admin">Daily Entry</button>
+        <button class="nav-item" data-view="checker" data-roles="checker,admin">Deposit Checker</button>
+        <button class="nav-item" data-view="reports" data-roles="store_user,checker,executive,admin">Branch Reports</button>
+        <button class="nav-item" data-view="summary" data-roles="checker,executive,admin">Executive Summary</button>
+        <button class="nav-item" data-view="audit" data-roles="executive,admin">Audit Trail</button>
+      </nav>
+      <div class="profile">
+        <div class="avatar" id="profileInitials">KS</div>
+        <div class="profile-copy"><strong id="profileName">Authorized User</strong><span id="profileRole">Loading…</span></div>
+        <button id="logoutBtn" class="icon-btn" title="Sign out" aria-label="Sign out">↗</button>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div><p class="eyebrow">Finance Control Center</p><h2 id="pageTitle">Daily Operations Dashboard</h2></div>
+        <div class="top-actions">
+          <span id="todayLabel"></span>
+          <button id="refreshBtn" class="btn secondary" type="button">Refresh</button>
+          <button id="exportBtn" class="btn secondary" type="button">Export CSV</button>
+        </div>
+      </header>
+
+      <div id="setupNotice" class="notice danger hidden">
+        <strong>Database setup required.</strong>
+        <span>Run <code>supabase/schema.sql</code> in the Supabase SQL Editor, then create and assign authorized users.</span>
+      </div>
+
+      <section class="toolbar">
+        <label>Reporting Date<input id="filterDate" type="date" /></label>
+        <div class="connection-status"><span id="connectionDot" class="dot"></span><span id="connectionText">Connecting to Supabase…</span></div>
+      </section>
+
+      <section class="metrics" data-section="dashboard">
+        <article><span>Reported Total</span><strong id="metricReported">₱0.00</strong><small>Selected business date</small></article>
+        <article><span>Actual Received</span><strong id="metricActual">₱0.00</strong><small>Verified deposits</small></article>
+        <article><span>Net Difference</span><strong id="metricDifference">₱0.00</strong><small>Actual minus reported</small></article>
+        <article><span>Customers</span><strong id="metricCustomers">0</strong><small>Combined customer count</small></article>
+      </section>
+
+      <section class="workspace">
+        <article class="card entry-card" data-section="entry">
+          <div class="card-head">
+            <div><h3>Daily Store Entry</h3><p>Encode the complete payment summary for one branch and business date.</p></div>
+            <span class="badge neutral" id="entryStatus">New Report</span>
+          </div>
+          <form id="entryForm">
+            <div class="form-grid two">
+              <label>Branch<select id="branch" required></select></label>
+              <label>Business Date<input id="businessDate" type="date" required /></label>
+            </div>
+            <div class="payment-grid" id="paymentFields"></div>
+            <label>Number of Customers<input id="customers" type="number" min="0" step="1" value="0" required /></label>
+            <div class="total-box"><span>IN TOTAL</span><strong id="reportedTotal">₱0.00</strong></div>
+            <label>Store Remarks<textarea id="storeRemarks" rows="3" maxlength="500" placeholder="Optional operational note or explanation"></textarea></label>
+            <div id="entryLockMessage" class="inline-notice hidden">This submitted report is locked. An administrator must reopen it before store values can be changed.</div>
+            <div class="actions">
+              <button type="button" id="clearEntryBtn" class="btn ghost">Clear</button>
+              <button type="button" id="saveDraftBtn" class="btn secondary">Save Draft</button>
+              <button type="submit" id="submitReportBtn" class="btn primary">Submit Report</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card checker-card" data-section="checker">
+          <div class="card-head">
+            <div><h3>Deposit Checker</h3><p>Validate a submitted branch report against the amount actually received.</p></div>
+            <span class="badge pending" id="checkerStatus">Select Report</span>
+          </div>
+          <div class="comparison">
+            <label>Report to Verify<select id="checkerReportSelect"></select></label>
+            <div><span>Branch / Date</span><strong id="checkerReportLabel">No report selected</strong></div>
+            <div><span>Reported Total</span><strong id="checkerReported">₱0.00</strong></div>
+            <label>Actual Received<input id="actualReceived" type="number" min="0" step="0.01" value="0" /></label>
+            <label>Reading / Reference<input id="reading" type="number" min="0" step="0.01" value="0" /></label>
+            <div><span>Difference</span><strong id="difference">₱0.00</strong></div>
+            <label>Received By<input id="receivedBy" type="text" maxlength="120" readonly /></label>
+            <label>Verification Remarks<textarea id="checkerRemarks" rows="3" maxlength="500" placeholder="Required when there is a difference"></textarea></label>
+            <button id="verifyBtn" class="btn success full" type="button">Save Deposit Verification</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="lower-grid">
+        <article class="card table-card" data-section="reports">
+          <div class="card-head">
+            <div><h3>Branch Submissions</h3><p>Daily submission and reconciliation status by branch.</p></div>
+            <div class="table-controls"><input id="reportSearch" type="search" placeholder="Search branch or status" /></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Branch</th><th>Date</th><th>Reported</th><th>Actual</th><th>Difference</th><th>Customers</th><th>Status</th><th>Submitted</th></tr></thead>
+              <tbody id="reportRows"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card summary-card" data-section="summary">
+          <div class="card-head"><div><h3>Executive Daily View</h3><p>Selected branch detail for management review.</p></div></div>
+          <label>Branch Report<select id="summaryReportSelect"></select></label>
+          <div id="executiveSummary" class="summary-content"></div>
+        </article>
+      </section>
+
+      <section class="card audit-card" data-section="audit">
+        <div class="card-head"><div><h3>Audit Trail</h3><p>Recorded changes to reports and deposit verifications.</p></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date & Time</th><th>User</th><th>Action</th><th>Record Type</th><th>Record ID</th></tr></thead>
+            <tbody id="auditRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="loadingOverlay" class="loading-overlay hidden" aria-live="polite"><div class="spinner"></div><span id="loadingText">Loading…</span></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
