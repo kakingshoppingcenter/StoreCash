@@ -128,6 +128,13 @@ window.KSC_CONFIG = Object.freeze({
   }
 })();
 
+(function hideDatabaseConnectionStatus() {
+  const style = document.createElement('style');
+  style.id = 'hideDatabaseConnectionStatus';
+  style.textContent = '.connection-status{display:none!important}';
+  document.head.appendChild(style);
+})();
+
 (function loadOptionalSystemFeatures() {
   const extensions = [
     {
