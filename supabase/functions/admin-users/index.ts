@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
     const fullName = String(payload.full_name ?? '').trim()
     const role = String(payload.role ?? '')
     const branchId = payload.branch_id ? String(payload.branch_id) : null
-    const active = payload.active !== false
+    const active = action === 'create_user' ? true : payload.active !== false
     const permissions = sanitizePermissions(payload.permissions)
     const password = payload.password ? String(payload.password) : undefined
 
@@ -170,22 +170,26 @@ Deno.serve(async (req) => {
       if (createError) throw createError
       if (!created.user) throw new Error('Supabase did not return the newly created user.')
 
-      const { error: profileError } = await admin.from('profiles').upsert({
-        id: created.user.id,
-        email,
-        full_name: fullName,
-        role,
-        branch_id: branchId,
-        active,
-        permissions,
-      }, { onConflict: 'id' })
+      const { data: createdProfile, error: profileError } = await admin
+        .from('profiles')
+        .upsert({
+          id: created.user.id,
+          email,
+          full_name: fullName,
+          role,
+          branch_id: branchId,
+          active: true,
+          permissions,
+        }, { onConflict: 'id' })
+        .select('id,active')
+        .single()
 
-      if (profileError) {
+      if (profileError || !createdProfile?.active) {
         await admin.auth.admin.deleteUser(created.user.id).catch(() => undefined)
-        throw profileError
+        throw profileError ?? new Error('Automatic account activation could not be confirmed.')
       }
 
-      return jsonResponse({ success: true, user_id: created.user.id }, 201)
+      return jsonResponse({ success: true, user_id: created.user.id, active: true }, 201)
     }
 
     const userId = String(payload.user_id ?? '')
@@ -213,13 +217,15 @@ Deno.serve(async (req) => {
     const { error: authUpdateError } = await admin.auth.admin.updateUserById(userId, authChanges)
     if (authUpdateError) throw authUpdateError
 
-    const { error: profileUpdateError } = await admin
+    const { data: updatedProfile, error: profileUpdateError } = await admin
       .from('profiles')
       .update({ email, full_name: fullName, role, branch_id: branchId, active, permissions })
       .eq('id', userId)
+      .select('id,active')
+      .single()
 
-    if (profileUpdateError) throw profileUpdateError
-    return jsonResponse({ success: true, user_id: userId })
+    if (profileUpdateError || !updatedProfile) throw profileUpdateError ?? new Error('The system profile could not be updated.')
+    return jsonResponse({ success: true, user_id: userId, active: Boolean(updatedProfile.active) })
   } catch (error) {
     console.error('admin-users error:', error)
     const message = error instanceof Error ? error.message : 'Unexpected administration error.'
