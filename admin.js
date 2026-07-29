@@ -28,6 +28,8 @@ let adminUsers = [];
 let selectedAdminUserId = null;
 let selectedAdminBranchId = null;
 let administrationExtensionReady = true;
+let userServiceState = 'unknown';
+let administrationLoading = false;
 
 function hasPermission(key, target = profile) {
   if (!target) return false;
@@ -135,9 +137,26 @@ setView = function (view) {
   };
   byId('pageTitle').textContent = titles[currentView] || 'Kaking Store Cash';
 
-  // User listing is intentionally loaded only when Administration is opened.
   if (currentView === 'administration') loadAdministration();
 };
+
+function installAdministrationStyles() {
+  if (document.getElementById('adminRuntimeStyles')) return;
+  const style = document.createElement('style');
+  style.id = 'adminRuntimeStyles';
+  style.textContent = `
+    .admin-service-status{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;padding:12px 14px;border:1px solid #d8e2ee;border-radius:11px;background:#f8fafc;font-size:11px;line-height:1.45}
+    .admin-service-status strong{display:block;margin-bottom:2px;font-size:12px;color:#25344a}.admin-service-status span{display:block;color:#65748b}
+    .admin-service-status.ready{border-color:#bfe7cc;background:#effbf3}.admin-service-status.ready strong{color:#16713a}
+    .admin-service-status.checking{border-color:#cfe0f5;background:#f4f8ff}.admin-service-status.checking strong{color:#175caa}
+    .admin-service-status.offline{border-color:#f0c6c2;background:#fff4f2}.admin-service-status.offline strong{color:#a52920}
+    .admin-service-status.setup{border-color:#efd69f;background:#fff8e8}.admin-service-status.setup strong{color:#745200}
+    .admin-service-status .btn{flex:0 0 auto;padding:8px 12px;font-size:10px}
+    .admin-form.user-service-disabled{opacity:.58}.admin-form.user-service-disabled input,.admin-form.user-service-disabled select,.admin-form.user-service-disabled button{cursor:not-allowed}
+    @media(max-width:760px){.admin-service-status{align-items:stretch;display:grid}.admin-service-status .btn{width:100%}}
+  `;
+  document.head.appendChild(style);
+}
 
 function buildPermissionEditor() {
   const groups = [...new Set(PERMISSION_DEFINITIONS.map((permission) => permission.group))];
@@ -198,10 +217,51 @@ function renderUserTable(message = '') {
   });
 }
 
+function ensureUserServiceStatus() {
+  let element = byId('userServiceStatus');
+  if (element) return element;
+
+  const panel = document.querySelector('.admin-panel[data-permission="manage_users"]');
+  if (!panel) return null;
+  element = document.createElement('div');
+  element.id = 'userServiceStatus';
+  element.className = 'admin-service-status checking';
+  panel.querySelector('.card-head')?.insertAdjacentElement('afterend', element);
+  return element;
+}
+
+function setUserFormEnabled(enabled) {
+  const form = byId('userAdminForm');
+  if (!form) return;
+  form.classList.toggle('user-service-disabled', !enabled);
+  form.querySelectorAll('input,select,button').forEach((control) => { control.disabled = !enabled; });
+}
+
+function setUserServiceStatus(state, title, message, allowRetry = false) {
+  userServiceState = state;
+  const element = ensureUserServiceStatus();
+  if (!element) return;
+  element.className = `admin-service-status ${state}`;
+  element.innerHTML = `<div><strong>${escapeHtml(title)}</strong><span>${escapeHtml(message)}</span></div>${allowRetry ? '<button id="retryUserServiceBtn" class="btn secondary" type="button">Retry connection</button>' : ''}`;
+  setUserFormEnabled(state === 'ready');
+
+  const retryButton = byId('retryUserServiceBtn');
+  if (retryButton) retryButton.addEventListener('click', () => loadUserAdministration(true));
+}
+
 function friendlyFunctionError(error) {
   const raw = error?.message || 'Administration request failed.';
+  if (/invalid or expired session|jwt|unauthorized|401/i.test(raw)) {
+    return 'Your session is no longer valid. Sign out, sign in again, and retry.';
+  }
+  if (/secret key is not available|no usable supabase secret key|SUPABASE_URL is not configured/i.test(raw)) {
+    return 'The Edge Function is deployed but its server environment is incomplete. Review the admin-users function logs in Supabase.';
+  }
+  if (/column .*?(email|permissions).*?does not exist|schema cache|relation .* does not exist/i.test(raw)) {
+    return 'The administration database extension is incomplete. Run supabase/admin_extension.sql in the Supabase SQL Editor.';
+  }
   if (/failed to send a request|failed to fetch|networkerror|function not found|404/i.test(raw)) {
-    return 'User management service is not deployed or reachable. Deploy the Supabase Edge Function named admin-users, then sign in again.';
+    return 'The secure user-management service is not deployed or reachable. Branch management remains available.';
   }
   return raw;
 }
@@ -216,7 +276,7 @@ async function invokeAdminUsers(payload) {
         message = details.error || message;
       }
     } catch (_) {
-      // Preserve the friendly network/deployment message.
+      // Keep the clear fallback message.
     }
     throw new Error(message);
   }
@@ -224,38 +284,55 @@ async function invokeAdminUsers(payload) {
   return data;
 }
 
-async function loadAdministration() {
+async function loadBranchesAdministration() {
+  if (!hasPermission('manage_branches')) return;
+  const result = await db.from('branches').select('*').order('name');
+  if (result.error) throw result.error;
+  adminBranches = result.data || [];
+  populateAdminBranchOptions();
+  renderBranchTable();
+}
+
+async function loadUserAdministration(forceRetry = false) {
+  if (!hasPermission('manage_users')) return;
   if (!administrationExtensionReady) {
-    showToast('Run supabase/admin_extension.sql before using administration.', 'error');
+    setUserServiceStatus('setup', 'Database extension required', 'Run supabase/admin_extension.sql before using user management.');
+    renderUserTable('User management is unavailable until the database extension is installed.');
     return;
   }
-  if (!hasAnyPermission('manage_users,manage_branches') || !db || !session) return;
+  if (userServiceState === 'offline' && !forceRetry) return;
 
-  // Branch management remains available even if the user Edge Function is offline.
-  if (hasPermission('manage_branches')) {
-    const branchResult = await db.from('branches').select('*').order('name');
-    if (branchResult.error) {
-      console.error(branchResult.error);
-      showToast(branchResult.error.message || 'Unable to load branches.', 'error');
-    } else {
-      adminBranches = branchResult.data || [];
-      populateAdminBranchOptions();
-      renderBranchTable();
-    }
+  setUserServiceStatus('checking', 'Checking secure user service', 'Connecting to the Supabase admin-users Edge Function…');
+  renderUserTable('Checking the secure user-management service…');
+
+  try {
+    const result = await invokeAdminUsers({ action: 'list_users' });
+    adminUsers = result.users || [];
+    setUserServiceStatus('ready', 'User management is connected', 'Authorized user accounts can now be created and updated securely.');
+    renderUserTable();
+  } catch (error) {
+    console.error(error);
+    const message = friendlyFunctionError(error);
+    setUserServiceStatus('offline', 'User management setup is incomplete', message, true);
+    renderUserTable(message);
   }
+}
 
-  if (hasPermission('manage_users')) {
-    renderUserTable('Loading authorized users…');
-    try {
-      const result = await invokeAdminUsers({ action: 'list_users' });
-      adminUsers = result.users || [];
-      renderUserTable();
-    } catch (error) {
-      console.error(error);
-      const message = friendlyFunctionError(error);
-      renderUserTable(message);
-      showToast(message, 'error');
+async function loadAdministration() {
+  if (administrationLoading || !hasAnyPermission('manage_users,manage_branches') || !db || !session) return;
+  administrationLoading = true;
+  try {
+    if (hasPermission('manage_branches')) {
+      try {
+        await loadBranchesAdministration();
+      } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Unable to load branches.', 'error');
+      }
     }
+    await loadUserAdministration(false);
+  } finally {
+    administrationLoading = false;
   }
 }
 
@@ -272,7 +349,7 @@ function editBranch(id) {
   selectedAdminBranchId = id;
   byId('branchCode').value = branch.code;
   byId('branchName').value = branch.name;
-  byId('branchActive').checked = branch.active;
+  byId('branchActive').checked = Boolean(branch.active);
   byId('branchSaveBtn').textContent = 'Update Branch';
   byId('branchCode').focus();
 }
@@ -286,7 +363,6 @@ async function saveBranch(event) {
     name: byId('branchName').value.trim(),
     active: byId('branchActive').checked
   };
-
   if (!/^[A-Z0-9_-]{2,20}$/.test(payload.code)) return showToast('Branch code must be 2–20 letters, numbers, underscores, or hyphens.', 'error');
   if (payload.name.length < 2) return showToast('Enter a valid branch name.', 'error');
 
@@ -300,7 +376,7 @@ async function saveBranch(event) {
     showToast(selectedAdminBranchId ? 'Branch updated successfully.' : 'Branch added successfully.', 'success');
     resetBranchForm();
     await loadData();
-    await loadAdministration();
+    await loadBranchesAdministration();
   } catch (error) {
     console.error(error);
     showToast(error.message || 'Unable to save branch.', 'error');
@@ -318,9 +394,11 @@ function resetUserForm() {
   byId('userPasswordHint').textContent = 'Required for a new user. Share it securely and ask the user to change it.';
   byId('userSaveBtn').textContent = 'Create User';
   applyRoleDefaults('store_user');
+  setUserFormEnabled(userServiceState === 'ready');
 }
 
 function editUser(id) {
+  if (userServiceState !== 'ready') return;
   const user = adminUsers.find((item) => item.id === id);
   if (!user) return;
   selectedAdminUserId = id;
@@ -340,6 +418,7 @@ function editUser(id) {
 async function saveUser(event) {
   event.preventDefault();
   if (!hasPermission('manage_users')) return showToast('You are not authorized to manage users.', 'error');
+  if (userServiceState !== 'ready') return setUserServiceStatus('offline', 'User management setup is incomplete', 'Deploy the Supabase Edge Function named admin-users, then retry the connection.', true);
 
   const role = byId('userRole').value;
   const payload = {
@@ -363,16 +442,19 @@ async function saveUser(event) {
     await invokeAdminUsers(payload);
     showToast(selectedAdminUserId ? 'User updated successfully.' : 'User created successfully.', 'success');
     resetUserForm();
-    await loadAdministration();
+    await loadUserAdministration(true);
   } catch (error) {
     console.error(error);
-    showToast(friendlyFunctionError(error), 'error');
+    const message = friendlyFunctionError(error);
+    setUserServiceStatus('offline', 'User management request failed', message, true);
+    renderUserTable(message);
   } finally {
     setLoading(false);
   }
 }
 
 function bindAdministrationEvents() {
+  installAdministrationStyles();
   buildPermissionEditor();
   byId('branchAdminForm').addEventListener('submit', saveBranch);
   byId('branchResetBtn').addEventListener('click', resetBranchForm);
@@ -381,6 +463,8 @@ function bindAdministrationEvents() {
   byId('userRole').addEventListener('change', () => applyRoleDefaults(byId('userRole').value));
   resetBranchForm();
   resetUserForm();
+  ensureUserServiceStatus();
+  setUserServiceStatus('checking', 'User management not checked yet', 'Open Administration to test the secure Supabase service.');
 }
 
 bindAdministrationEvents();
