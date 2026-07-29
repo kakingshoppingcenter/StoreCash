@@ -139,7 +139,7 @@ window.KSC_CONFIG = Object.freeze({
   const extensions = [
     {
       selector: 'script[data-ksc-admin-function-compat]',
-      source: './admin-function-compat.js?v=20260729-1748',
+      source: './admin-function-compat.js?v=20260729-1845',
       attribute: 'kscAdminFunctionCompat'
     },
     {
