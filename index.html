@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="admin.css" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen">
@@ -50,12 +51,13 @@
         <div><h1>KakingStoreCash</h1><p>Daily Cash & Deposit Control</p></div>
       </div>
       <nav id="mainNav" aria-label="Primary navigation">
-        <button class="nav-item active" data-view="dashboard" data-roles="store_user,checker,executive,admin">Dashboard</button>
-        <button class="nav-item" data-view="entry" data-roles="store_user,admin">Daily Entry</button>
-        <button class="nav-item" data-view="checker" data-roles="checker,admin">Deposit Checker</button>
-        <button class="nav-item" data-view="reports" data-roles="store_user,checker,executive,admin">Branch Reports</button>
-        <button class="nav-item" data-view="summary" data-roles="checker,executive,admin">Executive Summary</button>
-        <button class="nav-item" data-view="audit" data-roles="executive,admin">Audit Trail</button>
+        <button class="nav-item active" data-view="dashboard" data-permission="dashboard_view">Dashboard</button>
+        <button class="nav-item" data-view="entry" data-permission="entry_view">Daily Entry</button>
+        <button class="nav-item" data-view="checker" data-permission="checker_view">Deposit Checker</button>
+        <button class="nav-item" data-view="reports" data-permission="reports_view">Branch Reports</button>
+        <button class="nav-item" data-view="summary" data-permission="summary_view">Executive Summary</button>
+        <button class="nav-item" data-view="audit" data-permission="audit_view">Audit Trail</button>
+        <button class="nav-item" data-view="administration" data-permission="manage_users,manage_branches">Administration</button>
       </nav>
       <div class="profile">
         <div class="avatar" id="profileInitials">KS</div>
@@ -70,13 +72,13 @@
         <div class="top-actions">
           <span id="todayLabel"></span>
           <button id="refreshBtn" class="btn secondary" type="button">Refresh</button>
-          <button id="exportBtn" class="btn secondary" type="button">Export CSV</button>
+          <button id="exportBtn" class="btn secondary" type="button" data-permission="export_data">Export CSV</button>
         </div>
       </header>
 
       <div id="setupNotice" class="notice danger hidden">
         <strong>Database setup required.</strong>
-        <span>Run <code>supabase/schema.sql</code> in the Supabase SQL Editor, then create and assign authorized users.</span>
+        <span>Run <code>supabase/schema.sql</code> and <code>supabase/admin_extension.sql</code>, then deploy the <code>admin-users</code Edge Function.</span>
       </div>
 
       <section class="toolbar">
@@ -106,7 +108,7 @@
             <label>Number of Customers<input id="customers" type="number" min="0" step="1" value="0" required /></label>
             <div class="total-box"><span>IN TOTAL</span><strong id="reportedTotal">₱0.00</strong></div>
             <label>Store Remarks<textarea id="storeRemarks" rows="3" maxlength="500" placeholder="Optional operational note or explanation"></textarea></label>
-            <div id="entryLockMessage" class="inline-notice hidden">This submitted report is locked. An administrator must reopen it before store values can be changed.</div>
+            <div id="entryLockMessage" class="inline-notice hidden">This submitted report is locked. An authorized administrator must reopen it before store values can be changed.</div>
             <div class="actions">
               <button type="button" id="clearEntryBtn" class="btn ghost">Clear</button>
               <button type="button" id="saveDraftBtn" class="btn secondary">Save Draft</button>
@@ -164,6 +166,68 @@
           </table>
         </div>
       </section>
+
+      <section class="admin-shell" data-section="administration">
+        <div class="admin-intro">
+          <div><h3>System Administration</h3><p>Create branches and authorized accounts directly from the web system. Permissions are enforced in both the interface and Supabase Row Level Security.</p></div>
+          <span class="badge matched">Secure Administration</span>
+        </div>
+
+        <div class="admin-grid">
+          <article class="card admin-panel" data-permission="manage_branches">
+            <div class="card-head"><div><h3>Branch Management</h3><p>Add a new branch or select an existing branch to update it.</p></div></div>
+            <form id="branchAdminForm" class="admin-form">
+              <div class="admin-form-row">
+                <label>Branch Code<input id="branchCode" maxlength="20" placeholder="Example: KPM" required /></label>
+                <label>Branch Name<input id="branchName" maxlength="120" placeholder="Example: Parkmall" required /></label>
+              </div>
+              <label class="switch-line"><input id="branchActive" type="checkbox" checked /> Active branch</label>
+              <div class="admin-actions">
+                <button id="branchResetBtn" class="btn ghost" type="button">Clear</button>
+                <button id="branchSaveBtn" class="btn primary" type="submit">Add Branch</button>
+              </div>
+            </form>
+            <div class="admin-divider"></div>
+            <div class="admin-section-title"><h4>Configured Branches</h4><span>Select a row to edit</span></div>
+            <div class="table-wrap admin-table-wrap">
+              <table class="admin-table"><thead><tr><th>Code</th><th>Branch</th><th>Status</th><th>Updated</th></tr></thead><tbody id="adminBranchRows"></tbody></table>
+            </div>
+          </article>
+
+          <article class="card admin-panel" data-permission="manage_users">
+            <div class="card-head"><div><h3>User and Access Management</h3><p>Create accounts, assign branches and roles, and control individual viewing and editing permissions.</p></div></div>
+            <form id="userAdminForm" class="admin-form">
+              <div class="admin-form-row">
+                <label>Full Name<input id="userFullName" maxlength="120" required /></label>
+                <label>Email Address<input id="userEmail" type="email" required /></label>
+              </div>
+              <div class="admin-form-row">
+                <label>Temporary / New Password<input id="userPassword" type="password" minlength="10" autocomplete="new-password" /></label>
+                <label>Base Role<select id="userRole" required><option value="store_user">Store User</option><option value="checker">Deposit Checker</option><option value="executive">Executive Reviewer</option><option value="admin">System Administrator</option></select></label>
+              </div>
+              <p id="userPasswordHint" class="helper-text"></p>
+              <div class="admin-form-row">
+                <label>Assigned Branch<select id="userBranch"></select></label>
+                <label class="switch-line"><input id="userActive" type="checkbox" checked /> Active account</label>
+              </div>
+              <div class="admin-warning">The base role loads recommended permissions. Administrators may then adjust each permission for the individual user. Supabase policies enforce these permissions even if someone attempts to bypass the interface.</div>
+              <div>
+                <p class="admin-subtitle"><strong>Individual Permissions</strong></p>
+                <div id="permissionGrid" class="permission-grid"></div>
+              </div>
+              <div class="admin-actions">
+                <button id="userResetBtn" class="btn ghost" type="button">Clear</button>
+                <button id="userSaveBtn" class="btn primary" type="submit">Create User</button>
+              </div>
+            </form>
+            <div class="admin-divider"></div>
+            <div class="admin-section-title"><h4>Authorized Users</h4><span>Select a row to edit</span></div>
+            <div class="table-wrap admin-table-wrap">
+              <table class="admin-table"><thead><tr><th>User</th><th>Role</th><th>Branch</th><th>Status</th><th>Last Sign-In</th></tr></thead><tbody id="adminUserRows"></tbody></table>
+            </div>
+          </article>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -173,5 +237,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script src="admin.js"></script>
 </body>
 </html>
