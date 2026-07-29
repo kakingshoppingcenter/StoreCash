@@ -43,8 +43,9 @@
     if (!button) return;
 
     const user = selectedUser();
-    button.classList.toggle('hidden', !user);
-    if (!user) return;
+    const isAdministrator = profile?.role === 'admin';
+    button.classList.toggle('hidden', !user || !isAdministrator);
+    if (!user || !isAdministrator) return;
 
     const isSelf = user.id === session?.user?.id;
     const unavailable = userServiceState !== 'ready';
@@ -89,8 +90,8 @@
   }
 
   async function deleteSelectedUser() {
-    if (!hasPermission('manage_users')) {
-      showToast('You are not authorized to delete users.', 'error');
+    if (profile?.role !== 'admin') {
+      showToast('Only a system administrator can permanently delete users.', 'error');
       return;
     }
 
