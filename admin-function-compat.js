@@ -80,3 +80,12 @@
     return responseData || {};
   };
 })();
+
+(function loadProtectedBranchDeletion() {
+  if (document.querySelector('script[data-ksc-branch-delete]')) return;
+  const script = document.createElement('script');
+  script.src = './branch-delete.js?v=20260729-1812';
+  script.dataset.kscBranchDelete = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
