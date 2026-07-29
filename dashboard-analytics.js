@@ -4,6 +4,37 @@
   const charts = {};
   const compact = new Intl.NumberFormat('en-PH', { notation: 'compact', maximumFractionDigits: 1 });
 
+  function loadAnalyticsAssets() {
+    if (!document.querySelector('link[data-ksc-dashboard-analytics]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = './dashboard-analytics.css?v=20260729-1912';
+      link.dataset.kscDashboardAnalytics = 'true';
+      document.head.appendChild(link);
+    }
+
+    if (window.Chart) return Promise.resolve();
+    const existing = document.querySelector('script[data-ksc-chartjs]');
+    if (existing) {
+      return new Promise((resolve) => {
+        if (window.Chart) resolve();
+        else {
+          existing.addEventListener('load', resolve, { once: true });
+          existing.addEventListener('error', resolve, { once: true });
+        }
+      });
+    }
+
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js';
+      script.dataset.kscChartjs = 'true';
+      script.onload = resolve;
+      script.onerror = resolve;
+      document.head.appendChild(script);
+    });
+  }
+
   function addSection() {
     if (document.getElementById('dashboardAnalytics')) return;
     const metrics = document.querySelector('.metrics[data-section="dashboard"]');
@@ -146,4 +177,8 @@
     const original = renderMetrics;
     renderMetrics = function renderMetricsWithAnalytics() { original(); renderAnalytics(); };
   }
+
+  window.setTimeout(() => {
+    loadAnalyticsAssets().finally(renderAnalytics);
+  }, 0);
 })();
