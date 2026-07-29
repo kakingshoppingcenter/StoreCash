@@ -45,7 +45,7 @@ Run the SQL files in this exact order from **Supabase Dashboard > SQL Editor**:
 1. `supabase/schema.sql`
 2. `supabase/admin_extension.sql`
 3. `supabase/production_hardening.sql`
-4. `supabase/report_reopen.sql`
+4. `supabase/report_reopen_extension.sql`
 5. Any other documented feature migration that has not yet been applied
 
 The production hardening file adds server-side enforcement for:
