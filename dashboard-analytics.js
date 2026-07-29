@@ -1,38 +1,21 @@
 'use strict';
 
 (function installDashboardAnalytics() {
-  const charts = {};
-  const compact = new Intl.NumberFormat('en-PH', { notation: 'compact', maximumFractionDigits: 1 });
+  const PAYMENT_COLORS = ['#1268e8', '#18a46b', '#7259d9', '#e9a23b', '#37a5c9', '#d35d6e', '#6b7d91', '#9e7a4c'];
+  const STATUS_COLORS = {
+    Matched: '#138a45',
+    Pending: '#e9a23b',
+    'With Difference': '#b42318',
+    Draft: '#718096'
+  };
 
-  function loadAnalyticsAssets() {
-    if (!document.querySelector('link[data-ksc-dashboard-analytics]')) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = './dashboard-analytics.css?v=20260729-1940';
-      link.dataset.kscDashboardAnalytics = 'true';
-      document.head.appendChild(link);
-    }
-
-    if (window.Chart) return Promise.resolve();
-    const existing = document.querySelector('script[data-ksc-chartjs]');
-    if (existing) {
-      return new Promise((resolve) => {
-        if (window.Chart) resolve();
-        else {
-          existing.addEventListener('load', resolve, { once: true });
-          existing.addEventListener('error', resolve, { once: true });
-        }
-      });
-    }
-
-    return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js';
-      script.dataset.kscChartjs = 'true';
-      script.onload = resolve;
-      script.onerror = resolve;
-      document.head.appendChild(script);
-    });
+  function loadAnalyticsStyles() {
+    if (document.querySelector('link[data-ksc-dashboard-analytics]')) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = './dashboard-analytics.css?v=20260729-1927';
+    link.dataset.kscDashboardAnalytics = 'true';
+    document.head.appendChild(link);
   }
 
   function addSection() {
@@ -58,11 +41,17 @@
       <div class="analytics-grid">
         <article class="analytics-card trend-card">
           <div class="analytics-card-head"><div><h4>Branch Reconciliation</h4><p>Reported totals compared with verified amounts received.</p></div><span class="analytics-tag">Branch View</span></div>
-          <div class="chart-frame" id="branchChartFrame"><canvas id="branchChart"></canvas><div id="branchChartEmpty" class="chart-empty hidden">No branch submissions are available for this date.</div></div>
+          <div class="native-chart-frame"><div id="branchBars" class="branch-bars"></div><div id="branchChartEmpty" class="chart-empty hidden">No branch submissions are available for this date.</div></div>
+        </article>
+        <article class="analytics-card payment-card">
+          <div class="analytics-card-head"><div><h4>Payment Channel Mix</h4><p>Share of the total by payment method.</p></div><span class="analytics-tag">Payment Mix</span></div>
+          <div class="donut-layout"><div id="paymentMixChart" class="native-donut" role="img" aria-label="Payment channel mix"><div class="donut-center"><strong id="paymentMixTotal">₱0.00</strong><span>Total</span></div></div><div id="paymentMixLegend" class="donut-legend"></div></div>
+          <div id="paymentMixEmpty" class="chart-empty inline-empty hidden">No payment amounts have been reported for this date.</div>
         </article>
         <article class="analytics-card status-card">
           <div class="analytics-card-head"><div><h4>Reconciliation Status</h4><p>Submission status and reports needing follow-up.</p></div><span class="analytics-tag">Control Status</span></div>
-          <div class="chart-frame status-chart-frame"><canvas id="statusChart"></canvas><div id="statusChartEmpty" class="chart-empty hidden">No report statuses are available for this date.</div></div>
+          <div class="donut-layout"><div id="statusChart" class="native-donut" role="img" aria-label="Reconciliation status"><div class="donut-center"><strong id="statusTotal">0</strong><span>Reports</span></div></div><div id="statusLegend" class="donut-legend"></div></div>
+          <div id="statusChartEmpty" class="chart-empty inline-empty hidden">No report statuses are available for this date.</div>
           <div class="analytics-footnote">Pending reports have not yet received deposit verification.</div>
         </article>
       </div>`;
@@ -70,48 +59,8 @@
     metrics.insertAdjacentElement('afterend', section);
   }
 
-  function empty(id, show, text) {
-    const node = document.getElementById(id);
-    if (!node) return;
-    if (text) node.textContent = text;
-    node.classList.toggle('hidden', !show);
-  }
-
-  function replaceChart(name, canvasId, config) {
-    if (!window.Chart) return;
-    if (charts[name]) charts[name].destroy();
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    charts[name] = new window.Chart(canvas, config);
-  }
-
-  function plugins() {
-    return {
-      legend: {
-        labels: {
-          usePointStyle: true,
-          pointStyle: 'circle',
-          boxWidth: 8,
-          boxHeight: 8,
-          padding: 14,
-          color: '#526177',
-          font: { family: 'Inter', size: 10, weight: '600' }
-        }
-      },
-      tooltip: {
-        backgroundColor: '#132238',
-        titleColor: '#fff',
-        bodyColor: '#e7eef7',
-        padding: 11,
-        cornerRadius: 9,
-        callbacks: {
-          label(ctx) {
-            const label = ctx.dataset.label ? `${ctx.dataset.label}: ` : `${ctx.label}: `;
-            return `${label}${formatMoney(ctx.raw)}`;
-          }
-        }
-      }
-    };
+  function toggleEmpty(id, show) {
+    document.getElementById(id)?.classList.toggle('hidden', !show);
   }
 
   function updateStatistics() {
@@ -146,82 +95,87 @@
   }
 
   function renderBranchChart() {
+    const container = byId('branchBars');
+    if (!container) return;
+
     const rows = reports
       .map((report) => {
         const verification = verificationFor(report);
+        const reported = Number(report.reported_total || paymentTotal(report));
+        const actual = verification ? Number(verification.actual_received || 0) : null;
         return {
           name: report.branches?.name || report.branches?.code || 'Unknown',
-          reported: Number(report.reported_total || paymentTotal(report)),
-          actual: verification ? Number(verification.actual_received || 0) : null
+          reported,
+          actual,
+          difference: actual === null ? null : actual - reported
         };
       })
       .sort((left, right) => right.reported - left.reported);
 
-    empty('branchChartEmpty', !rows.length);
-    if (!rows.length || !window.Chart) return;
+    toggleEmpty('branchChartEmpty', !rows.length);
+    if (!rows.length) {
+      container.innerHTML = '';
+      return;
+    }
 
-    const frame = byId('branchChartFrame');
-    if (frame) frame.style.height = `${Math.max(270, Math.min(540, 105 + rows.length * 38))}px`;
+    const maximum = Math.max(1, ...rows.flatMap((row) => [row.reported, row.actual || 0]));
+    container.innerHTML = rows.map((row) => {
+      const reportedWidth = Math.max(2, (row.reported / maximum) * 100);
+      const actualWidth = row.actual === null ? 0 : Math.max(2, (row.actual / maximum) * 100);
+      const differenceClass = row.difference === null || Math.abs(row.difference) < 0.005 ? 'matched-value' : 'difference-value';
+      const differenceText = row.difference === null ? 'Pending verification' : `Difference ${formatMoney(row.difference)}`;
+      return `
+        <div class="branch-bar-row">
+          <div class="branch-bar-heading"><strong>${escapeHtml(row.name)}</strong><span class="${differenceClass}">${escapeHtml(differenceText)}</span></div>
+          <div class="branch-bar-line"><span>Reported</span><div class="bar-track"><div class="bar-fill reported" style="width:${reportedWidth}%"></div></div><strong>${escapeHtml(formatMoney(row.reported))}</strong></div>
+          <div class="branch-bar-line"><span>Received</span><div class="bar-track"><div class="bar-fill received ${row.actual === null ? 'not-verified' : ''}" style="width:${actualWidth}%"></div></div><strong>${row.actual === null ? '—' : escapeHtml(formatMoney(row.actual))}</strong></div>
+        </div>`;
+    }).join('');
+  }
 
-    replaceChart('branch', 'branchChart', {
-      type: 'bar',
-      data: {
-        labels: rows.map((row) => row.name),
-        datasets: [
-          {
-            label: 'Reported Total',
-            data: rows.map((row) => row.reported),
-            backgroundColor: 'rgba(18,104,232,.82)',
-            borderColor: '#1268e8',
-            borderWidth: 1,
-            borderRadius: 6,
-            borderSkipped: false
-          },
-          {
-            label: 'Actual Received',
-            data: rows.map((row) => row.actual),
-            backgroundColor: 'rgba(19,138,69,.76)',
-            borderColor: '#138a45',
-            borderWidth: 1,
-            borderRadius: 6,
-            borderSkipped: false
-          }
-        ]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: plugins(),
-        scales: {
-          x: {
-            beginAtZero: true,
-            grid: { color: 'rgba(117,133,153,.12)' },
-            border: { display: false },
-            ticks: {
-              color: '#718096',
-              font: { family: 'Inter', size: 9 },
-              callback: (value) => `₱${compact.format(value)}`
-            }
-          },
-          y: {
-            grid: { display: false },
-            border: { display: false },
-            ticks: {
-              color: '#445268',
-              autoSkip: false,
-              font: { family: 'Inter', size: 10, weight: '600' }
-            }
-          }
-        }
-      }
+  function renderDonut(chartId, legendId, rows, totalLabel, valueFormatter) {
+    const chart = byId(chartId);
+    const legend = byId(legendId);
+    if (!chart || !legend) return;
+
+    const total = rows.reduce((sum, row) => sum + Number(row.value || 0), 0);
+    if (!total) {
+      chart.style.background = '#edf1f6';
+      legend.innerHTML = '';
+      return;
+    }
+
+    let cursor = 0;
+    const segments = rows.map((row) => {
+      const start = cursor;
+      cursor += (Number(row.value) / total) * 100;
+      return `${row.color} ${start.toFixed(3)}% ${cursor.toFixed(3)}%`;
     });
+    chart.style.background = `conic-gradient(${segments.join(',')})`;
+    chart.setAttribute('aria-label', `${totalLabel}: ${rows.map((row) => `${row.label} ${row.value}`).join(', ')}`);
+    legend.innerHTML = rows.map((row) => {
+      const percentage = total ? (Number(row.value) / total) * 100 : 0;
+      return `<div class="donut-legend-row"><span class="legend-dot" style="background:${row.color}"></span><span class="legend-label">${escapeHtml(row.label)}</span><strong>${escapeHtml(valueFormatter(row.value))}</strong><small>${percentage.toFixed(1)}%</small></div>`;
+    }).join('');
+  }
+
+  function renderPaymentChart() {
+    const rows = PAYMENT_TYPES
+      .map(({ label, key }, index) => ({
+        label,
+        value: reports.reduce((sum, report) => sum + Number(report[key] || 0), 0),
+        color: PAYMENT_COLORS[index % PAYMENT_COLORS.length]
+      }))
+      .filter((row) => row.value > 0);
+
+    const total = rows.reduce((sum, row) => sum + row.value, 0);
+    toggleEmpty('paymentMixEmpty', !rows.length);
+    byId('paymentMixTotal').textContent = formatMoney(total);
+    renderDonut('paymentMixChart', 'paymentMixLegend', rows, 'Payment channel mix', (value) => formatMoney(value));
   }
 
   function renderStatusChart() {
     const values = { Matched: 0, Pending: 0, 'With Difference': 0, Draft: 0 };
-
     reports.forEach((report) => {
       const verification = verificationFor(report);
       if (!verification && report.status === 'draft') values.Draft += 1;
@@ -231,62 +185,25 @@
     });
 
     const rows = Object.entries(values)
-      .map(([label, value]) => ({ label, value }))
+      .map(([label, value]) => ({ label, value, color: STATUS_COLORS[label] }))
       .filter((row) => row.value > 0);
 
-    empty('statusChartEmpty', !rows.length);
-    if (!rows.length || !window.Chart) return;
-
-    replaceChart('status', 'statusChart', {
-      type: 'doughnut',
-      data: {
-        labels: rows.map((row) => row.label),
-        datasets: [{
-          data: rows.map((row) => row.value),
-          backgroundColor: rows.map((row) => ({
-            Matched: '#138a45',
-            Pending: '#e9a23b',
-            'With Difference': '#b42318',
-            Draft: '#718096'
-          })[row.label]),
-          borderColor: '#fff',
-          borderWidth: 3,
-          hoverOffset: 5
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '66%',
-        plugins: {
-          legend: { position: 'bottom', labels: plugins().legend.labels },
-          tooltip: {
-            ...plugins().tooltip,
-            callbacks: {
-              label(ctx) {
-                const count = Number(ctx.raw);
-                return `${ctx.label}: ${count.toLocaleString('en-PH')} report${count === 1 ? '' : 's'}`;
-              }
-            }
-          }
-        }
-      }
-    });
+    toggleEmpty('statusChartEmpty', !rows.length);
+    byId('statusTotal').textContent = reports.length.toLocaleString('en-PH');
+    renderDonut('statusChart', 'statusLegend', rows, 'Reconciliation status', (value) => Number(value).toLocaleString('en-PH'));
   }
 
   function renderAnalytics() {
     addSection();
     updateStatistics();
-    if (!window.Chart) {
-      empty('branchChartEmpty', true, 'Chart could not load. Refresh the page and check the internet connection.');
-      empty('statusChartEmpty', true, 'Chart could not load. Refresh the page and check the internet connection.');
-      return;
-    }
     renderBranchChart();
+    renderPaymentChart();
     renderStatusChart();
   }
 
+  loadAnalyticsStyles();
   addSection();
+
   if (typeof renderMetrics === 'function') {
     const original = renderMetrics;
     renderMetrics = function renderMetricsWithAnalytics() {
@@ -295,7 +212,5 @@
     };
   }
 
-  window.setTimeout(() => {
-    loadAnalyticsAssets().finally(renderAnalytics);
-  }, 0);
+  window.setTimeout(renderAnalytics, 0);
 })();
