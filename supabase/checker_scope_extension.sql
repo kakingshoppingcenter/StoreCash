@@ -1,54 +1,84 @@
 -- Kaking Store Cash deposit-checker scope extension
--- Run after schema.sql, admin_extension.sql, and production_hardening.sql.
+-- Run once after schema.sql, admin_extension.sql, and production_hardening.sql.
 -- This migration lets administrators choose which payment fields each Deposit
--- Checker can view and verify. Unselected store-entry values are not returned
--- to checker accounts by the Supabase Data API.
+-- Checker can view and verify. Unselected store-entry values are never returned
+-- to restricted checker accounts by the Supabase Data API.
 
 begin;
 
-create or replace function public.valid_checker_scope(value jsonb)
+create or replace function public.valid_checker_payment_types(value text[])
 returns boolean
 language sql
 immutable
 set search_path=public,pg_temp
 as $$
-  select
-    jsonb_typeof(value) = 'object'
-    and jsonb_typeof(value -> 'all') = 'boolean'
-    and jsonb_typeof(value -> 'payment_types') = 'array'
-    and jsonb_array_length(value -> 'payment_types') between 1 and 8
-    and not exists (
-      select 1
-      from jsonb_array_elements_text(value -> 'payment_types') as item(value)
-      where item.value not in ('cash','gcash','maya','credit','debit','cheque','salmon','other')
-    )
-    and (
-      select count(*) = count(distinct item.value)
-      from jsonb_array_elements_text(value -> 'payment_types') as item(value)
-    );
+  select coalesce(
+    value is not null
+    and cardinality(value) between 1 and 8
+    and value <@ array['cash','gcash','maya','credit','debit','cheque','salmon','other']::text[]
+    and cardinality(value) = cardinality(array(select distinct item from unnest(value) as item)),
+    false
+  );
+$$;
+
+create or replace function public.valid_checker_scope(value jsonb)
+returns boolean
+language plpgsql
+immutable
+set search_path=public,pg_temp
+as $$
+declare
+  selected_types text[];
+begin
+  if value is null or jsonb_typeof(value) <> 'object' then
+    return false;
+  end if;
+
+  if jsonb_typeof(value -> 'all') <> 'boolean'
+     or jsonb_typeof(value -> 'payment_types') <> 'array' then
+    return false;
+  end if;
+
+  select coalesce(array_agg(item),array[]::text[])
+    into selected_types
+    from jsonb_array_elements_text(value -> 'payment_types') as selected(item);
+
+  return public.valid_checker_payment_types(selected_types);
+exception when others then
+  return false;
+end;
 $$;
 
 create or replace function public.checker_scope_payment_types(value jsonb)
 returns text[]
-language sql
+language plpgsql
 immutable
 set search_path=public,pg_temp
 as $$
-  select case
-    when coalesce((value ->> 'all')::boolean,true) then
-      array['cash','gcash','maya','credit','debit','cheque','salmon','other']::text[]
-    else coalesce((
-      select array_agg(item.value order by array_position(
-        array['cash','gcash','maya','credit','debit','cheque','salmon','other']::text[],
-        item.value
-      ))
-      from (
-        select distinct value
-        from jsonb_array_elements_text(value -> 'payment_types') as values_list(value)
-        where value in ('cash','gcash','maya','credit','debit','cheque','salmon','other')
-      ) as item
-    ), array[]::text[])
-  end;
+declare
+  selected_types text[];
+begin
+  if not public.valid_checker_scope(value) then
+    return array[]::text[];
+  end if;
+
+  if (value ->> 'all')::boolean then
+    return array['cash','gcash','maya','credit','debit','cheque','salmon','other']::text[];
+  end if;
+
+  select coalesce(array_agg(item order by array_position(
+    array['cash','gcash','maya','credit','debit','cheque','salmon','other']::text[],
+    item
+  )),array[]::text[])
+    into selected_types
+    from (
+      select distinct value as item
+      from jsonb_array_elements_text(value -> 'payment_types') as selected(value)
+      where value in ('cash','gcash','maya','credit','debit','cheque','salmon','other')
+    ) normalized;
+
+  return selected_types;
+end;
 $$;
 
 alter table public.profiles
@@ -75,26 +105,23 @@ alter table public.deposit_verifications
   add column if not exists checked_payment_types text[] not null default
   array['cash','gcash','maya','credit','debit','cheque','salmon','other']::text[];
 
+-- Rows created before this extension receive the original complete-report scope.
+-- The condition is deliberately narrow so rerunning the migration cannot replace
+-- a verification that was already saved with a restricted checker scope.
 update public.deposit_verifications verification
 set expected_amount = report.reported_total,
     checked_payment_types = array['cash','gcash','maya','credit','debit','cheque','salmon','other']::text[]
 from public.daily_reports report
 where report.id = verification.report_id
-  and (
-    verification.expected_amount is distinct from report.reported_total
-    or verification.checked_payment_types is null
-    or cardinality(verification.checked_payment_types) = 0
-  );
+  and verification.expected_amount = 0
+  and verification.checked_payment_types = array['cash','gcash','maya','credit','debit','cheque','salmon','other']::text[];
 
 alter table public.deposit_verifications
   drop constraint if exists deposit_verifications_checked_payment_types_valid;
 
 alter table public.deposit_verifications
   add constraint deposit_verifications_checked_payment_types_valid
-  check (
-    cardinality(checked_payment_types) between 1 and 8
-    and checked_payment_types <@ array['cash','gcash','maya','credit','debit','cheque','salmon','other']::text[]
-  );
+  check (public.valid_checker_payment_types(checked_payment_types));
 
 create or replace function public.checker_can_access_report(target_report_id uuid)
 returns boolean
@@ -196,8 +223,8 @@ begin
     else array['cash','gcash','maya','credit','debit','cheque','salmon','other']::text[]
   end;
 
-  if cardinality(selected_types) = 0 then
-    raise exception 'The Deposit Checker has no authorized payment fields.';
+  if not public.valid_checker_payment_types(selected_types) then
+    raise exception 'The Deposit Checker has no valid authorized payment fields.';
   end if;
 
   select report.status,
@@ -284,7 +311,7 @@ begin
   end if;
 
   expose_complete_entry := actor_role <> 'checker'::public.app_role
-    or coalesce((actor_scope ->> 'all')::boolean,true);
+    or coalesce((actor_scope ->> 'all')::boolean,false);
 
   selected_types := case
     when actor_role = 'checker'::public.app_role
@@ -292,8 +319,8 @@ begin
     else array['cash','gcash','maya','credit','debit','cheque','salmon','other']::text[]
   end;
 
-  if cardinality(selected_types) = 0 then
-    raise exception 'The Deposit Checker has no authorized payment fields.';
+  if not public.valid_checker_payment_types(selected_types) then
+    raise exception 'The Deposit Checker has no valid authorized payment fields.';
   end if;
 
   can_view_all_branches := public.has_permission('reports_all_branches');
@@ -324,13 +351,35 @@ begin
     ),
     'customer_count',case when expose_complete_entry then report.customer_count else null end,
     'store_remarks',case when expose_complete_entry then report.store_remarks else null end,
-    'status',report.status,
+    'status',case
+      when actor_role = 'checker'::public.app_role
+       and not expose_complete_entry
+       and not exists (
+         select 1
+         from public.deposit_verifications scoped_verification
+         where scoped_verification.report_id = report.id
+           and scoped_verification.checked_payment_types = selected_types
+       )
+        then 'pending_verification'::public.report_status
+      else report.status
+    end,
+    'submitted_by',report.submitted_by,
     'submitted_at',report.submitted_at,
     'created_at',report.created_at,
     'updated_at',report.updated_at,
     'checker_scope',jsonb_build_object(
       'all',expose_complete_entry,
       'payment_types',to_jsonb(selected_types)
+    ),
+    'has_other_scope_verification',(
+      actor_role = 'checker'::public.app_role
+      and not expose_complete_entry
+      and exists (
+        select 1
+        from public.deposit_verifications other_verification
+        where other_verification.report_id = report.id
+          and other_verification.checked_payment_types is distinct from selected_types
+      )
     ),
     'branches',jsonb_build_object(
       'id',branch.id,
@@ -351,6 +400,11 @@ begin
       ))
       from public.deposit_verifications verification
       where verification.report_id = report.id
+        and (
+          actor_role <> 'checker'::public.app_role
+          or expose_complete_entry
+          or verification.checked_payment_types = selected_types
+        )
     ),'[]'::jsonb)
   )
   from public.daily_reports report
