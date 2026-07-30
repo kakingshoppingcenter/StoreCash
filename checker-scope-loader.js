@@ -3,13 +3,13 @@
 (function loadDepositCheckerScopeFeature() {
   if (document.querySelector('script[data-ksc-checker-scope]')) return;
 
-  function loadScopedSynchronization() {
-    if (document.querySelector('script[data-ksc-checker-scope-sync]')) return;
-    const syncScript = document.createElement('script');
-    syncScript.src = './checker-scope-sync.js?v=20260730-1056';
-    syncScript.dataset.kscCheckerScopeSync = 'true';
-    syncScript.async = false;
-    document.body.appendChild(syncScript);
+  function loadSupportingFeature(selector, source, attribute) {
+    if (document.querySelector(selector)) return;
+    const supportingScript = document.createElement('script');
+    supportingScript.src = source;
+    supportingScript.dataset[attribute] = 'true';
+    supportingScript.async = false;
+    document.body.appendChild(supportingScript);
   }
 
   const script = document.createElement('script');
@@ -17,7 +17,17 @@
   script.dataset.kscCheckerScope = 'true';
   script.async = false;
   script.onload = () => {
-    loadScopedSynchronization();
+    loadSupportingFeature(
+      'script[data-ksc-checker-scope-sync]',
+      './checker-scope-sync.js?v=20260730-1056',
+      'kscCheckerScopeSync'
+    );
+    loadSupportingFeature(
+      'script[data-ksc-checker-scope-export]',
+      './checker-scope-export.js?v=20260730-1056',
+      'kscCheckerScopeExport'
+    );
+
     window.setTimeout(async () => {
       if (typeof session === 'undefined' || !session || typeof profile === 'undefined' || profile?.role !== 'checker') return;
       try {
