@@ -2,24 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b1f3a" />
+  <meta name="color-scheme" content="light" />
   <meta name="description" content="Kaking Store Cash daily branch reporting and deposit reconciliation system." />
   <title>Kaking Store Cash</title>
-  <link rel="icon" type="image/svg+xml" href="./assets/kaking-store-cash-icon.svg?v=20260729121734" />
-  <link rel="shortcut icon" type="image/svg+xml" href="./assets/kaking-store-cash-icon.svg?v=20260729121734" />
-  <link rel="apple-touch-icon" href="./assets/kaking-store-cash-icon.svg?v=20260729121734" />
+  <link rel="icon" type="image/svg+xml" href="./assets/kaking-store-cash-icon.svg?v=202607300854" />
+  <link rel="shortcut icon" type="image/svg+xml" href="./assets/kaking-store-cash-icon.svg?v=202607300854" />
+  <link rel="apple-touch-icon" href="./assets/kaking-store-cash-icon.svg?v=202607300854" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20260729121734" />
-  <link rel="stylesheet" href="admin.css?v=20260729121734" />
+  <link rel="stylesheet" href="styles.css?v=202607300854" />
+  <link rel="stylesheet" href="admin.css?v=202607300854" />
 </head>
 <body>
   <section id="authScreen" class="auth-screen">
     <div class="auth-brand-panel">
       <div class="auth-brand-content">
-        <img class="brand-logo large" src="./assets/kaking-store-cash-icon.svg?v=20260729121734" alt="Kaking Store Cash logo" />
+        <img class="brand-logo large" src="./assets/kaking-store-cash-icon.svg?v=202607300854" alt="Kaking Store Cash logo" />
         <p class="eyebrow light">Daily Finance Control</p>
         <h1>Kaking Store Cash</h1>
         <p>Secure daily branch reporting, deposit validation, and executive reconciliation in one professional workspace.</p>
@@ -38,7 +39,7 @@
           <h2>Sign in to continue</h2>
           <p>Use the company account assigned by your system administrator.</p>
         </div>
-        <label>Email address<input id="loginEmail" type="email" autocomplete="username" required /></label>
+        <label>Email address<input id="loginEmail" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
         <label>Password<input id="loginPassword" type="password" autocomplete="current-password" minlength="6" required /></label>
         <button id="loginBtn" class="btn primary full" type="submit">Sign In</button>
         <p id="authMessage" class="form-message" aria-live="polite"></p>
@@ -51,7 +52,7 @@
   <div id="appShell" class="app-shell hidden">
     <aside class="sidebar">
       <div class="brand">
-        <img class="brand-logo" src="./assets/kaking-store-cash-icon.svg?v=20260729121734" alt="Kaking Store Cash logo" />
+        <img class="brand-logo" src="./assets/kaking-store-cash-icon.svg?v=202607300854" alt="Kaking Store Cash logo" />
         <div><h1>Kaking Store Cash</h1><p>Daily Cash &amp; Deposit Control</p></div>
       </div>
       <nav id="mainNav" aria-label="Primary navigation">
@@ -82,7 +83,7 @@
 
       <div id="setupNotice" class="notice danger hidden">
         <strong>Database setup required.</strong>
-        <span>Run <code>supabase/schema.sql</code> and <code>supabase/admin_extension.sql</code>, then deploy the <code>admin-users</code Edge Function.</span>
+        <span>Run <code>supabase/schema.sql</code> and <code>supabase/admin_extension.sql</code>, then deploy the <code>admin-users</code> Edge Function.</span>
       </div>
 
       <section class="toolbar">
@@ -109,7 +110,7 @@
               <label>Business Date<input id="businessDate" type="date" required /></label>
             </div>
             <div class="payment-grid" id="paymentFields"></div>
-            <label>Number of Customers<input id="customers" type="number" min="0" step="1" value="0" required /></label>
+            <label>Number of Customers<input id="customers" type="number" inputmode="numeric" min="0" step="1" value="0" required /></label>
             <div class="total-box"><span>IN TOTAL</span><strong id="reportedTotal">₱0.00</strong></div>
             <label>Store Remarks<textarea id="storeRemarks" rows="3" maxlength="500" placeholder="Optional operational note or explanation"></textarea></label>
             <div id="entryLockMessage" class="inline-notice hidden">This submitted report is locked. An authorized administrator must reopen it before store values can be changed.</div>
@@ -130,8 +131,8 @@
             <label>Report to Verify<select id="checkerReportSelect"></select></label>
             <div><span>Branch / Date</span><strong id="checkerReportLabel">No report selected</strong></div>
             <div><span>Reported Total</span><strong id="checkerReported">₱0.00</strong></div>
-            <label>Actual Received<input id="actualReceived" type="number" min="0" step="0.01" value="0" /></label>
-            <label>Reading / Reference<input id="reading" type="number" min="0" step="0.01" value="0" /></label>
+            <label>Actual Received<input id="actualReceived" type="number" inputmode="decimal" min="0" step="0.01" value="0" /></label>
+            <label>Reading / Reference<input id="reading" type="number" inputmode="decimal" min="0" step="0.01" value="0" /></label>
             <div><span>Difference</span><strong id="difference">₱0.00</strong></div>
             <label>Received By<input id="receivedBy" type="text" maxlength="120" readonly /></label>
             <label>Verification Remarks<textarea id="checkerRemarks" rows="3" maxlength="500" placeholder="Required when there is a difference"></textarea></label>
@@ -203,7 +204,7 @@
             <form id="userAdminForm" class="admin-form">
               <div class="admin-form-row">
                 <label>Full Name<input id="userFullName" maxlength="120" required /></label>
-                <label>Email Address<input id="userEmail" type="email" required /></label>
+                <label>Email Address<input id="userEmail" type="email" autocapitalize="none" spellcheck="false" required /></label>
               </div>
               <div class="admin-form-row">
                 <label>Temporary / New Password<input id="userPassword" type="password" minlength="10" autocomplete="new-password" /></label>
@@ -241,8 +242,8 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4"></script>
-  <script src="config.js?v=20260729121734"></script>
-  <script src="app.js?v=20260729121734"></script>
-  <script src="admin.js?v=20260729121734"></script>
+  <script src="config.js?v=202607300854"></script>
+  <script src="app.js?v=202607300854"></script>
+  <script src="admin.js?v=202607300854"></script>
 </body>
 </html>
