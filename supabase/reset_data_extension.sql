@@ -117,9 +117,11 @@ begin
   -- this transaction and is not available to ordinary client requests.
   perform set_config('app.allow_operational_reset','on',true);
 
-  delete from public.deposit_verifications;
-  delete from public.daily_reports;
-  delete from public.audit_logs;
+  -- Explicit WHERE clauses satisfy Supabase/Postgres safe-update protection
+  -- while still deleting the complete operational dataset transactionally.
+  delete from public.deposit_verifications where true;
+  delete from public.daily_reports where true;
+  delete from public.audit_logs where true;
 
   insert into public.audit_logs(
     actor_id,
