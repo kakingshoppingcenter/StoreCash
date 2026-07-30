@@ -18,9 +18,14 @@
   script.async = false;
   script.onload = () => {
     loadScopedSynchronization();
-    window.setTimeout(() => {
-      if (typeof session !== 'undefined' && session && typeof profile !== 'undefined' && profile?.role === 'checker' && typeof loadData === 'function') {
-        loadData().catch((error) => console.error('Unable to load the authorized Deposit Checker scope.', error));
+    window.setTimeout(async () => {
+      if (typeof session === 'undefined' || !session || typeof profile === 'undefined' || profile?.role !== 'checker') return;
+      try {
+        if (typeof loadProfile === 'function') await loadProfile();
+        if (typeof loadData === 'function') await loadData();
+      } catch (error) {
+        console.error('Unable to load the authorized Deposit Checker scope.', error);
+        if (typeof showToast === 'function') showToast(error.message || 'Unable to load the authorized Deposit Checker scope.', 'error');
       }
     }, 0);
   };
