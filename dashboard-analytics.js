@@ -7,7 +7,7 @@
     if (document.querySelector('link[data-ksc-dashboard-analytics]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = './dashboard-analytics.css?v=20260729-1932';
+    link.href = './dashboard-analytics.css?v=20260730-0840';
     link.dataset.kscDashboardAnalytics = 'true';
     document.head.appendChild(link);
   }
@@ -33,9 +33,17 @@
         <article class="analytics-stat" id="statAttentionCard"><span class="analytics-stat-label">Attention Required</span><strong class="analytics-stat-value" id="statAttention">0</strong><small class="analytics-stat-note" id="statAttentionNote">0 pending · 0 with difference</small></article>
       </div>
       <div class="analytics-grid analytics-grid-two">
-        <article class="analytics-card trend-card">
-          <div class="analytics-card-head"><div><h4>Branch Reconciliation</h4><p>Reported totals compared with verified amounts received.</p></div><span class="analytics-tag">Branch View</span></div>
-          <div class="native-chart-frame"><div id="branchBars" class="branch-bars"></div><div id="branchChartEmpty" class="chart-empty hidden">No branch submissions are available for this date.</div></div>
+        <article class="analytics-card trend-card compact-reconciliation-card">
+          <div class="analytics-card-head"><div><h4>Branch Reconciliation</h4><p>Compact comparison of reported and verified amounts.</p></div><span class="analytics-tag">Compact View</span></div>
+          <div class="recon-toolbar">
+            <div class="recon-legend"><span><i class="legend-swatch reported"></i>Reported</span><span><i class="legend-swatch received"></i>Received</span></div>
+            <small id="branchChartMeta">No submissions</small>
+          </div>
+          <div class="native-chart-frame compact-chart-frame">
+            <div class="recon-table-head" aria-hidden="true"><span>Branch</span><span>Reported</span><span>Received</span><span>Result</span></div>
+            <div id="branchBars" class="branch-bars compact-reconciliation"></div>
+            <div id="branchChartEmpty" class="chart-empty hidden">No branch submissions are available for this date.</div>
+          </div>
         </article>
         <article class="analytics-card payment-card">
           <div class="analytics-card-head"><div><h4>Payment Channel Mix</h4><p>Share of the total by payment method.</p></div><span class="analytics-tag">Payment Mix</span></div>
@@ -84,6 +92,7 @@
 
   function renderBranchChart() {
     const container = byId('branchBars');
+    const meta = byId('branchChartMeta');
     if (!container) return;
 
     const rows = reports
@@ -91,11 +100,14 @@
         const verification = verificationFor(report);
         const reported = Number(report.reported_total || paymentTotal(report));
         const actual = verification ? Number(verification.actual_received || 0) : null;
+        const difference = actual === null ? null : actual - reported;
+        const status = actual === null ? 'pending' : Math.abs(difference) < 0.005 ? 'matched' : 'different';
         return {
           name: report.branches?.name || report.branches?.code || 'Unknown',
           reported,
           actual,
-          difference: actual === null ? null : actual - reported
+          difference,
+          status
         };
       })
       .sort((left, right) => right.reported - left.reported);
@@ -103,20 +115,27 @@
     toggleEmpty('branchChartEmpty', !rows.length);
     if (!rows.length) {
       container.innerHTML = '';
+      if (meta) meta.textContent = 'No submissions';
       return;
     }
 
+    const pendingCount = rows.filter((row) => row.status === 'pending').length;
+    const differentCount = rows.filter((row) => row.status === 'different').length;
+    const matchedCount = rows.filter((row) => row.status === 'matched').length;
+    if (meta) meta.textContent = `${rows.length} branches · ${matchedCount} matched · ${pendingCount} pending · ${differentCount} difference`;
+
     const maximum = Math.max(1, ...rows.flatMap((row) => [row.reported, row.actual || 0]));
     container.innerHTML = rows.map((row) => {
-      const reportedWidth = Math.max(2, (row.reported / maximum) * 100);
-      const actualWidth = row.actual === null ? 0 : Math.max(2, (row.actual / maximum) * 100);
-      const differenceClass = row.difference === null || Math.abs(row.difference) < 0.005 ? 'matched-value' : 'difference-value';
-      const differenceText = row.difference === null ? 'Pending verification' : `Difference ${formatMoney(row.difference)}`;
+      const reportedWidth = Math.max(1.5, (row.reported / maximum) * 100);
+      const actualWidth = row.actual === null ? 0 : Math.max(1.5, (row.actual / maximum) * 100);
+      const resultLabel = row.status === 'pending' ? 'Pending' : row.status === 'matched' ? 'Matched' : 'Difference';
+      const resultValue = row.status === 'pending' ? 'Awaiting verification' : row.status === 'matched' ? formatMoney(0) : formatMoney(row.difference);
       return `
-        <div class="branch-bar-row">
-          <div class="branch-bar-heading"><strong>${escapeHtml(row.name)}</strong><span class="${differenceClass}">${escapeHtml(differenceText)}</span></div>
-          <div class="branch-bar-line"><span>Reported</span><div class="bar-track"><div class="bar-fill reported" style="width:${reportedWidth}%"></div></div><strong>${escapeHtml(formatMoney(row.reported))}</strong></div>
-          <div class="branch-bar-line"><span>Received</span><div class="bar-track"><div class="bar-fill received ${row.actual === null ? 'not-verified' : ''}" style="width:${actualWidth}%"></div></div><strong>${row.actual === null ? '—' : escapeHtml(formatMoney(row.actual))}</strong></div>
+        <div class="recon-row">
+          <div class="recon-branch"><strong>${escapeHtml(row.name)}</strong><small>${row.status === 'pending' ? 'Not yet verified' : 'Verification complete'}</small></div>
+          <div class="recon-amount reported-amount"><strong>${escapeHtml(formatMoney(row.reported))}</strong><span class="mini-track"><i class="mini-fill reported" style="width:${reportedWidth}%"></i></span></div>
+          <div class="recon-amount received-amount ${row.actual === null ? 'is-pending' : ''}"><strong>${row.actual === null ? '—' : escapeHtml(formatMoney(row.actual))}</strong><span class="mini-track"><i class="mini-fill received" style="width:${actualWidth}%"></i></span></div>
+          <div class="recon-result ${row.status}"><span>${escapeHtml(resultLabel)}</span><strong>${escapeHtml(resultValue)}</strong></div>
         </div>`;
     }).join('');
   }
