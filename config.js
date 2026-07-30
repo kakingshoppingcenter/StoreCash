@@ -186,6 +186,11 @@ window.KSC_CONFIG = Object.freeze({
       selector: 'script[data-ksc-realtime-sync]',
       source: './realtime-sync.js?v=20260729-2030',
       attribute: 'kscRealtimeSync'
+    },
+    {
+      selector: 'script[data-ksc-checker-scope-loader]',
+      source: './checker-scope-loader.js?v=20260730-1056',
+      attribute: 'kscCheckerScopeLoader'
     }
   ];
 
