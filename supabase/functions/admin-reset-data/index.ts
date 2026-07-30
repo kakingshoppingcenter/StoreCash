@@ -15,6 +15,25 @@ function jsonResponse(body: unknown, status = 200) {
   })
 }
 
+function describeError(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string' && error.trim()) return error.trim()
+
+  if (error && typeof error === 'object') {
+    const value = error as Record<string, unknown>
+    const parts = [
+      typeof value.message === 'string' ? value.message : '',
+      typeof value.details === 'string' ? value.details : '',
+      typeof value.hint === 'string' ? value.hint : '',
+      typeof value.code === 'string' ? `Code: ${value.code}` : '',
+    ].filter(Boolean)
+
+    if (parts.length) return parts.join(' ')
+  }
+
+  return 'Unexpected protected reset error.'
+}
+
 function getSecretKey(): string {
   const legacy = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (legacy) return legacy
@@ -104,11 +123,14 @@ Deno.serve(async (req) => {
       p_confirmation: confirmation,
     })
 
-    if (resetError) throw resetError
+    if (resetError) {
+      console.error('admin_reset_operational_data RPC error:', resetError)
+      return jsonResponse({ error: describeError(resetError) }, 500)
+    }
+
     return jsonResponse({ success: true, ...(result ?? {}) })
   } catch (error) {
     console.error('admin-reset-data error:', error)
-    const message = error instanceof Error ? error.message : 'Unexpected protected reset error.'
-    return jsonResponse({ error: message }, 500)
+    return jsonResponse({ error: describeError(error) }, 500)
   }
 })
