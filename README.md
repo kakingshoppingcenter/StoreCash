@@ -12,14 +12,17 @@ The repository contains a working responsive web application connected to Supaba
 - Branch-restricted access using Row Level Security
 - Daily entry for CASH, G-CASH, MAYA, CREDIT, DEBIT, CHEQUE, SALMON, and OTHER
 - Automatic reported total and customer-count tracking
+- Administrator-defined payment scope for each Deposit Checker
+- Server-masked checker reports that do not return unauthorized sales values
 - Deposit checking against the actual amount received
-- Automatic difference and reconciliation status
+- Automatic scoped expected amount, difference, and reconciliation status
 - Required verification remarks whenever a difference exists
 - One report per branch and business date
 - Submitted-report locking and authorized reopening
 - Executive daily summary and protected CSV export
-- Administration for branches, accounts, roles, and permissions
+- Administration for branches, accounts, roles, permissions, and checker scope
 - Protected deletion of unused branches with typed confirmation
+- Administrator-only operational-data reset with typed confirmation and audit recording
 - Password-change controls
 - Immutable audit records for financial changes
 - Responsive desktop, tablet, and mobile interface
@@ -48,7 +51,9 @@ Run the SQL files in this exact order from **Supabase Dashboard > SQL Editor**:
 3. `supabase/production_hardening.sql`
 4. `supabase/report_reopen_extension.sql`
 5. `supabase/branch_delete_extension.sql`
-6. Any other documented feature migration that has not yet been applied
+6. `supabase/checker_scope_extension.sql`
+7. `supabase/reset_data_extension.sql`
+8. Any other documented feature migration that has not yet been applied
 
 The production hardening file adds server-side enforcement for:
 
@@ -61,11 +66,46 @@ The production hardening file adds server-side enforcement for:
 - Mandatory remarks for non-zero differences
 - Branch-scoped verification permissions
 
+The checker-scope extension adds:
+
+- A payment-field scope on each checker profile
+- A server-only scoped-report function
+- Direct `daily_reports` read protection for Deposit Checker accounts
+- Server-calculated expected amounts based only on authorized payment fields
+- Historical recording of the payment fields used for each verification
+- Restricted customer-count and store-remarks access unless **Check all** is enabled
+
 The branch deletion extension allows permanent deletion only when a branch has no assigned users and no financial reports. Branches with historical or account references must be marked inactive instead. Successful branch changes and deletions are recorded in the audit trail.
 
-## Required Supabase Edge Function
+## Required Supabase Edge Functions
 
-Deploy the `admin-users` Edge Function before using web-based user administration. Configure its server-side secrets in Supabase. Never put its privileged key in browser code.
+Deploy these functions with their exact names and server-side secrets:
+
+- `admin-users` — account, role, permission, and Deposit Checker scope management
+- `admin-delete-user` — protected deletion of unused accounts
+- `admin-reset-data` — protected operational-record reset
+
+Never put a privileged Supabase key in browser code.
+
+## Deposit Checker scope
+
+When editing a user whose base role is **Deposit Checker**, Administration shows:
+
+- **Check all store-entry payment types**
+- CASH
+- G-CASH
+- MAYA
+- CREDIT
+- DEBIT
+- CHEQUE
+- SALMON
+- OTHER
+
+When **Check all** is disabled, at least one payment type must be selected. A restricted checker receives only the selected payment values from Supabase. The checker does not receive the complete reported total, unselected payment values, customer count, or store remarks.
+
+Existing checker accounts default to **Check all** after the migration. Select each checker account in Administration and save the required scope.
+
+See `docs/CHECKER_SCOPE_SETUP.md` for deployment and testing steps.
 
 ## Initial administrator
 
@@ -119,45 +159,44 @@ Available roles:
 ## Calculation rules
 
 ```text
-Reported Total = CASH + G-CASH + MAYA + CREDIT + DEBIT + CHEQUE + SALMON + OTHER
-Difference = Actual Received - Reported Total
+Complete Reported Total = CASH + G-CASH + MAYA + CREDIT + DEBIT + CHEQUE + SALMON + OTHER
+Checker Expected Amount = Sum of the payment types authorized for that Deposit Checker
+Difference = Actual Received - Checker Expected Amount
 ```
 
 - Difference `0.00` = `Matched`
 - Non-zero difference = `With Difference`
 - No verification = `Pending Verification`
 
-PostgreSQL is the final source of truth for totals, differences, report status, permissions, and audit enforcement. Browser calculations are for immediate display and validation only.
+PostgreSQL is the final source of truth for totals, differences, checker scope, report status, permissions, and audit enforcement. Browser calculations are for immediate display and validation only.
 
 ## Deployment
 
-Import this repository into Vercel and request the project name `kakingstorecash`. The expected public address is:
-
-```text
-https://kakingstorecash.vercel.app
-```
-
-The exact address is available only when that Vercel project name has not already been claimed.
+The GitHub Pages deployment is available under the repository site. A Vercel deployment may also use the project name `kakingstorecash` when available.
 
 ## Production release checklist
 
 Before entering real business data:
 
-1. Change this GitHub repository from **public** to **private**.
+1. Change this GitHub repository from **public** to **private** if GitHub Pages is not required.
 2. Run all required SQL files in the documented order.
-3. Deploy and secure the `admin-users` Edge Function.
+3. Deploy and secure the required Edge Functions.
 4. Create separate test accounts for every role.
 5. Confirm that each store account sees only its assigned branch.
 6. Confirm that submitted reports cannot be changed by store users.
 7. Confirm that checkers cannot alter payment amounts.
-8. Confirm that reports with differences require remarks.
-9. Confirm that unauthorized API requests are rejected by Row Level Security.
-10. Confirm that audit records are created for report and verification changes.
-11. Confirm that used branches cannot be deleted and unused branches require code confirmation.
-12. Test CSV exports using remarks beginning with `=`, `+`, `-`, and `@`.
-13. Test dates near midnight using the Asia/Manila timezone.
-14. Test on mobile, tablet, laptop, and large desktop displays.
-15. Configure automated Supabase backups and perform a real restoration test.
-16. Document the recovery process and responsible administrators.
+8. Configure one checker for G-CASH only and confirm CASH, MAYA, cards, and other values are unavailable.
+9. Configure another checker for CREDIT and DEBIT and confirm the expected total contains only those two fields.
+10. Confirm **Check all** restores the complete payment breakdown, customer count, and store remarks.
+11. Confirm a checker cannot retrieve complete `daily_reports` rows through the browser API.
+12. Confirm reports with differences require remarks.
+13. Confirm unauthorized API requests are rejected by Row Level Security.
+14. Confirm audit records are created for report and verification changes.
+15. Confirm used branches cannot be deleted and unused branches require code confirmation.
+16. Test CSV and Excel exports using restricted checker accounts.
+17. Test dates near midnight using the Asia/Manila timezone.
+18. Test on mobile, tablet, laptop, and large desktop displays.
+19. Configure automated Supabase backups and perform a real restoration test.
+20. Document the recovery process and responsible administrators.
 
 Do not treat the system as fully production-ready until this checklist is completed and signed off by both operations and accounting.
