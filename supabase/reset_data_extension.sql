@@ -170,3 +170,6 @@ comment on function public.admin_reset_operational_data(uuid,text,text) is
   'Server-only transactional reset of operational finance records. Preserves identities, branches, permissions, and schema, then writes one reset audit entry.';
 
 commit;
+
+-- Ensure Supabase Data API recognizes the newly created RPC immediately.
+notify pgrst, 'reload schema';
