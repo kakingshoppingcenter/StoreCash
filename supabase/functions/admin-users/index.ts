@@ -68,9 +68,10 @@ function sanitizeCheckerScope(value: unknown, role: string) {
   const all = raw.all !== false
   if (all) return { ...fullCheckerScope, payment_types: [...fullCheckerScope.payment_types] }
 
-  const selected = Array.isArray(raw.payment_types)
-    ? paymentTypes.filter((type) => raw.payment_types?.includes(type) && allowedPaymentTypes.has(type))
+  const requested = Array.isArray(raw.payment_types)
+    ? raw.payment_types.filter((item): item is string => typeof item === 'string' && allowedPaymentTypes.has(item))
     : []
+  const selected = paymentTypes.filter((type) => requested.includes(type))
 
   if (!selected.length) throw new Error('Select at least one payment type for the Deposit Checker.')
   return { all: false, payment_types: selected }
