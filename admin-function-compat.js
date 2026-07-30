@@ -142,3 +142,12 @@
   script.async = false;
   document.body.appendChild(script);
 })();
+
+(function loadProtectedOperationalReset() {
+  if (document.querySelector('script[data-ksc-operational-reset]')) return;
+  const script = document.createElement('script');
+  script.src = './admin-reset.js?v=20260730-0929';
+  script.dataset.kscOperationalReset = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
