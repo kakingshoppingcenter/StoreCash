@@ -82,7 +82,11 @@
     const persistentSetView = function persistentSetView(view) {
       const userId = syncUserState();
       baseSetView(view);
-      if (!navigationReady || !userId) return;
+      if (!userId) return;
+      if (!navigationReady) {
+        window.setTimeout(restoreSavedModule, 0);
+        return;
+      }
       saveView(activeNavigationView(), userId);
     };
     persistentSetView.__kscPersistentNavigation = true;
@@ -139,8 +143,10 @@
     if (!button || button.classList.contains('hidden')) return;
     window.setTimeout(() => {
       const userId = syncUserState();
-      if (!navigationReady) restoreSavedModule();
-      else saveView(button.dataset.view, userId);
+      const requestedView = normalizeView(button.dataset.view);
+      if (!userId || !requestedView || !visibleNavigation(requestedView)) return;
+      navigationReady = true;
+      saveView(requestedView, userId);
     }, 0);
   }, true);
 
