@@ -1,46 +1,22 @@
 'use strict';
 
 (function installKakingProfessionalInterface() {
-  if (window.__KSC_PROFESSIONAL_UI__) return;
-  window.__KSC_PROFESSIONAL_UI__ = true;
+  if (window.__KSC_PROFESSIONAL_UI_V2__) return;
+  window.__KSC_PROFESSIONAL_UI_V2__ = true;
 
-  const STYLE_URL = './professional-ui.css?v=20260731-1805';
+  const STYLESHEETS = [
+    { selector: 'link[data-ksc-professional-ui]', source: './professional-ui.css?v=20260731-1815', key: 'kscProfessionalUi' },
+    { selector: 'link[data-ksc-professional-flow]', source: './professional-ui-flow.css?v=20260731-1815', key: 'kscProfessionalFlow' }
+  ];
+
   const MODULE_META = {
-    dashboard: {
-      eyebrow: 'Operations Overview',
-      title: 'Daily Operations Dashboard',
-      description: 'Monitor daily submissions, deposit reconciliation, customer totals, and operational exceptions.'
-    },
-    entry: {
-      eyebrow: 'Store Reporting',
-      title: 'Daily Store Entry',
-      description: 'Encode and submit one complete branch payment summary for the selected business date.'
-    },
-    checker: {
-      eyebrow: 'Deposit Control',
-      title: 'Deposit Verification',
-      description: 'Validate submitted branch deposits against the payment fields authorized for your account.'
-    },
-    reports: {
-      eyebrow: 'Reporting Center',
-      title: 'Branch Reports',
-      description: 'Review branch submissions, verification status, amounts received, and recorded differences.'
-    },
-    summary: {
-      eyebrow: 'Management Review',
-      title: 'Executive Summary',
-      description: 'Examine the selected branch report and its complete authorized financial breakdown.'
-    },
-    audit: {
-      eyebrow: 'Governance and Control',
-      title: 'Audit Trail',
-      description: 'Review recorded system activity for accountability, traceability, and operational control.'
-    },
-    administration: {
-      eyebrow: 'System Control',
-      title: 'System Administration',
-      description: 'Manage branches, authorized users, roles, permissions, checker scope, and protected system controls.'
-    }
+    dashboard: ['Operations Overview', 'Daily Operations Dashboard', 'Monitor daily submissions, deposit reconciliation, customer totals, and operational exceptions.'],
+    entry: ['Store Reporting', 'Daily Store Entry', 'Encode and submit one complete branch payment summary for the selected business date.'],
+    checker: ['Deposit Control', 'Deposit Verification', 'Validate submitted branch deposits against the payment fields authorized for your account.'],
+    reports: ['Reporting Center', 'Branch Reports', 'Review branch submissions, verification status, amounts received, and recorded differences.'],
+    summary: ['Management Review', 'Executive Summary', 'Examine the selected branch report and its complete authorized financial breakdown.'],
+    audit: ['Governance and Control', 'Audit Trail', 'Review recorded system activity for accountability, traceability, and operational control.'],
+    administration: ['System Control', 'System Administration', 'Manage branches, authorized users, roles, permissions, checker scope, and protected system controls.']
   };
 
   const ICONS = {
@@ -54,46 +30,45 @@
   };
 
   const NAV_GROUPS = [
-    { label: 'Workspace', before: 'dashboard' },
-    { label: 'Insights', before: 'reports' },
-    { label: 'Control', before: 'administration' }
+    ['Workspace', 'dashboard'],
+    ['Insights', 'reports'],
+    ['Control', 'administration']
   ];
 
   let headObserver = null;
   let bodyObserver = null;
-  let contextQueued = false;
-  let tableQueued = false;
+  let contextPending = false;
+  let tablesPending = false;
 
-  function ensureStylesheet() {
-    let link = document.querySelector('link[data-ksc-professional-ui]');
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = STYLE_URL;
-      link.dataset.kscProfessionalUi = 'true';
-      document.head.appendChild(link);
-    } else if (!String(link.href).includes('20260731-1805')) {
-      link.href = STYLE_URL;
-    }
+  function ensureStylesheets() {
+    const links = STYLESHEETS.map(({ selector, source, key }) => {
+      let link = document.querySelector(selector);
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.dataset[key] = 'true';
+      }
+      if (!link.href.endsWith(source.replace('./', ''))) link.href = source;
+      return link;
+    });
 
-    if (document.head.lastElementChild !== link) document.head.appendChild(link);
-    return link;
+    links.forEach((link) => document.head.appendChild(link));
+    return links;
   }
 
-  function keepStylesheetLast() {
-    ensureStylesheet();
+  function keepDesignLast() {
+    ensureStylesheets();
     if (headObserver) return;
     headObserver = new MutationObserver(() => {
-      const link = document.querySelector('link[data-ksc-professional-ui]');
-      if (link && document.head.lastElementChild !== link) document.head.appendChild(link);
+      const flow = document.querySelector('link[data-ksc-professional-flow]');
+      if (flow && document.head.lastElementChild !== flow) ensureStylesheets();
     });
     headObserver.observe(document.head, { childList: true });
   }
 
   function ensureSkipLink() {
-    if (document.querySelector('.ksc-skip-link')) return;
     const main = document.querySelector('#appShell main');
-    if (!main) return;
+    if (!main || document.querySelector('.ksc-skip-link')) return;
     if (!main.id) main.id = 'mainContent';
     main.tabIndex = -1;
     const link = document.createElement('a');
@@ -108,7 +83,7 @@
     if (!nav) return;
 
     nav.querySelectorAll('.nav-item[data-view]').forEach((button) => {
-      const view = String(button.dataset.view || '');
+      const view = button.dataset.view || '';
       if (!button.querySelector('.nav-icon') && ICONS[view]) {
         const icon = document.createElement('span');
         icon.className = 'nav-icon';
@@ -116,14 +91,14 @@
         button.prepend(icon);
       }
       const meta = MODULE_META[view];
-      if (meta) button.title = `${meta.title}: ${meta.description}`;
+      if (meta) button.title = `${meta[1]}: ${meta[2]}`;
     });
 
-    NAV_GROUPS.forEach(({ label, before }) => {
+    NAV_GROUPS.forEach(([label, before]) => {
       const target = nav.querySelector(`.nav-item[data-view="${before}"]`);
       if (!target) return;
       const previous = target.previousElementSibling;
-      if (previous?.classList.contains('nav-group-label') && previous.dataset.group === before) return;
+      if (previous?.matches(`.nav-group-label[data-group="${before}"]`)) return;
       const marker = document.createElement('div');
       marker.className = 'nav-group-label';
       marker.dataset.group = before;
@@ -136,7 +111,7 @@
     return document.querySelector('.nav-item.active[data-view]:not(.hidden)')?.dataset.view || 'dashboard';
   }
 
-  function ensurePageSubtitle() {
+  function ensureSubtitle() {
     const title = document.getElementById('pageTitle');
     if (!title) return null;
     let subtitle = document.getElementById('pageSubtitle');
@@ -144,58 +119,53 @@
       subtitle = document.createElement('p');
       subtitle.id = 'pageSubtitle';
       subtitle.className = 'ksc-page-subtitle';
-      title.insertAdjacentElement('afterend', subtitle);
+      title.after(subtitle);
     }
     return subtitle;
   }
 
   function updateModuleContext() {
-    contextQueued = false;
+    contextPending = false;
     decorateNavigation();
     const view = activeModule();
-    const meta = MODULE_META[view] || MODULE_META.dashboard;
+    const [eyebrowText, titleText, description] = MODULE_META[view] || MODULE_META.dashboard;
     document.body.dataset.module = view;
 
     document.querySelectorAll('.nav-item[data-view]').forEach((button) => {
-      const active = button.dataset.view === view && !button.classList.contains('hidden');
-      if (active) button.setAttribute('aria-current', 'page');
+      if (button.dataset.view === view && !button.classList.contains('hidden')) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
 
     const eyebrow = document.querySelector('.topbar .eyebrow');
-    if (eyebrow) eyebrow.textContent = meta.eyebrow;
     const title = document.getElementById('pageTitle');
-    if (title && title.textContent.trim() !== meta.title) title.textContent = meta.title;
-    const subtitle = ensurePageSubtitle();
-    if (subtitle) subtitle.textContent = meta.description;
-    document.title = `${meta.title} · Kaking Store Cash`;
+    const subtitle = ensureSubtitle();
+    if (eyebrow) eyebrow.textContent = eyebrowText;
+    if (title) title.textContent = titleText;
+    if (subtitle) subtitle.textContent = description;
+    document.title = `${titleText} · Kaking Store Cash`;
   }
 
-  function queueContextUpdate() {
-    if (contextQueued) return;
-    contextQueued = true;
-    window.requestAnimationFrame(updateModuleContext);
-  }
-
-  function readableHeaderText(cell) {
-    return String(cell?.textContent || '').replace(/\s+/g, ' ').trim();
+  function queueContext() {
+    if (contextPending) return;
+    contextPending = true;
+    requestAnimationFrame(updateModuleContext);
   }
 
   function enhanceTable(table) {
-    const headers = [...table.querySelectorAll('thead th')].map(readableHeaderText);
+    const headers = [...table.querySelectorAll('thead th')].map((cell) => String(cell.textContent || '').replace(/\s+/g, ' ').trim());
     table.querySelectorAll('tbody tr').forEach((row) => {
       const cells = [...row.children].filter((cell) => cell.tagName === 'TD');
-      if (cells.length === 1 && cells[0].hasAttribute('colspan')) return;
-      cells.forEach((cell, index) => {
-        if (headers[index]) cell.dataset.label = headers[index];
-      });
+      if (!(cells.length === 1 && cells[0].hasAttribute('colspan'))) {
+        cells.forEach((cell, index) => {
+          if (headers[index]) cell.dataset.label = headers[index];
+        });
+      }
 
-      const clickable = row.matches('[data-report-id],[data-admin-user-id],[data-admin-branch-id]');
-      if (clickable && !row.hasAttribute('tabindex')) {
+      if (row.matches('[data-report-id],[data-admin-user-id],[data-admin-branch-id]') && !row.hasAttribute('tabindex')) {
         row.tabIndex = 0;
         row.setAttribute('role', 'button');
         row.addEventListener('keydown', (event) => {
-          if (event.key !== 'Enter' && event.key !== ' ') return;
+          if (!['Enter', ' '].includes(event.key)) return;
           event.preventDefault();
           row.click();
         });
@@ -204,81 +174,64 @@
   }
 
   function enhanceTables() {
-    tableQueued = false;
+    tablesPending = false;
     document.querySelectorAll('table').forEach(enhanceTable);
   }
 
-  function queueTableEnhancement() {
-    if (tableQueued) return;
-    tableQueued = true;
-    window.requestAnimationFrame(enhanceTables);
+  function queueTables() {
+    if (tablesPending) return;
+    tablesPending = true;
+    requestAnimationFrame(enhanceTables);
   }
 
   function improveControls() {
-    const reportSearch = document.getElementById('reportSearch');
-    if (reportSearch && !reportSearch.getAttribute('aria-label')) reportSearch.setAttribute('aria-label', 'Search branch reports');
-
+    const search = document.getElementById('reportSearch');
+    if (search && !search.getAttribute('aria-label')) search.setAttribute('aria-label', 'Search branch reports');
     document.querySelectorAll('input[type="number"]').forEach((input) => {
       if (!input.inputMode) input.inputMode = input.step && input.step !== '1' ? 'decimal' : 'numeric';
-    });
-
-    document.querySelectorAll('button').forEach((button) => {
-      if (!button.type) button.type = 'button';
     });
   }
 
   function observeInterface() {
     if (bodyObserver) return;
     bodyObserver = new MutationObserver((mutations) => {
-      let needsContext = false;
-      let needsTables = false;
-      for (const mutation of mutations) {
-        if (mutation.type === 'attributes' && mutation.target.classList?.contains('nav-item')) needsContext = true;
+      let contextChanged = false;
+      let tableChanged = false;
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.target.classList?.contains('nav-item')) contextChanged = true;
         if (mutation.type === 'childList') {
-          needsTables = true;
-          if ([...mutation.addedNodes].some((node) => node.nodeType === 1 && (node.matches?.('.nav-item,table,tbody,tr') || node.querySelector?.('.nav-item,table,tbody,tr')))) {
-            needsContext = true;
-          }
+          tableChanged = true;
+          if ([...mutation.addedNodes].some((node) => node.nodeType === 1 && (node.matches?.('.nav-item,table,tbody,tr') || node.querySelector?.('.nav-item,table,tbody,tr')))) contextChanged = true;
         }
-      }
-      if (needsContext) queueContextUpdate();
-      if (needsTables) queueTableEnhancement();
+      });
+      if (contextChanged) queueContext();
+      if (tableChanged) queueTables();
     });
-    bodyObserver.observe(document.body, {
-      subtree: true,
-      childList: true,
-      attributes: true,
-      attributeFilter: ['class']
-    });
+    bodyObserver.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
   }
 
-  function initializeProfessionalInterface() {
-    keepStylesheetLast();
-    ensureSkipLink();
+  function refreshInterface() {
+    ensureStylesheets();
     decorateNavigation();
     improveControls();
-    updateModuleContext();
-    enhanceTables();
+    queueContext();
+    queueTables();
+  }
+
+  function initialize() {
+    keepDesignLast();
+    ensureSkipLink();
+    refreshInterface();
     observeInterface();
-
-    window.setInterval(() => {
-      decorateNavigation();
-      queueContextUpdate();
-      queueTableEnhancement();
-    }, 1500);
+    setTimeout(refreshInterface, 400);
+    setTimeout(refreshInterface, 2400);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeProfessionalInterface, { once: true });
-  } else {
-    initializeProfessionalInterface();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });
+  else initialize();
 
-  window.addEventListener('load', () => {
-    window.setTimeout(() => {
-      ensureStylesheet();
-      queueContextUpdate();
-      queueTableEnhancement();
-    }, 350);
-  }, { once: true });
+  window.addEventListener('pageshow', refreshInterface);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshInterface();
+  });
 })();
