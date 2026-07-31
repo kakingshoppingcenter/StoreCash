@@ -1,5 +1,22 @@
 /* Module-flow refinements loaded after the primary professional design. */
 
+/* Permission visibility must override every desktop, tablet, and phone
+   navigation display rule from the professional interface. */
+html body [data-permission].hidden,
+html body [data-roles].hidden,
+html body .sidebar .nav-item.hidden,
+html body .sidebar nav .nav-item.hidden{
+  display:none!important;
+}
+
+/* Hide navigation group headings when the signed-in user has no visible
+   module in that group. */
+html body .sidebar nav .nav-group-label[data-group="dashboard"]:not(:has(~ .nav-item[data-view="dashboard"]:not(.hidden),~ .nav-item[data-view="entry"]:not(.hidden),~ .nav-item[data-view="checker"]:not(.hidden))),
+html body .sidebar nav .nav-group-label[data-group="reports"]:not(:has(~ .nav-item[data-view="reports"]:not(.hidden),~ .nav-item[data-view="summary"]:not(.hidden),~ .nav-item[data-view="audit"]:not(.hidden))),
+html body .sidebar nav .nav-group-label[data-group="administration"]:not(:has(~ .nav-item[data-view="administration"]:not(.hidden))){
+  display:none!important;
+}
+
 body[data-module="entry"] .workspace,
 body[data-module="checker"] .workspace,
 body[data-module="reports"] .lower-grid,
