@@ -1,14 +1,28 @@
 'use strict';
 
 (function installPersistentModuleNavigation() {
+  if (window.__KSC_MODULE_NAVIGATION_V2__) return;
+  window.__KSC_MODULE_NAVIGATION_V2__ = true;
+
+  const VALID_VIEWS = new Set([
+    'dashboard',
+    'entry',
+    'checker',
+    'reports',
+    'summary',
+    'audit',
+    'administration'
+  ]);
   const STORAGE_PREFIX = 'ksc:last-module:';
-  const RESTORE_INTERVAL_MS = 200;
-  const RESTORE_TIMEOUT_MS = 20000;
-  let baseSetView = null;
+  const MODULE_PARAMETER = 'module';
   let activeUserId = null;
   let navigationReady = false;
-  let restoreTimer = null;
-  let stopTimer = null;
+  let restoreQueued = false;
+
+  function normalizeView(value) {
+    const view = String(value || '').trim().toLowerCase();
+    return VALID_VIEWS.has(view) ? view : '';
+  }
 
   function currentUserId() {
     try {
@@ -20,13 +34,16 @@
     }
   }
 
-  function storageKey(userId = currentUserId()) {
-    return userId ? `${STORAGE_PREFIX}${userId}` : null;
+  function currentProfileReady() {
+    try {
+      return typeof profile !== 'undefined' && Boolean(profile);
+    } catch (_) {
+      return false;
+    }
   }
 
-  function normalizeView(value) {
-    const view = String(value || '').trim().toLowerCase();
-    return /^[a-z][a-z0-9_-]{0,40}$/.test(view) ? view : '';
+  function storageKey(userId = currentUserId()) {
+    return userId ? `${STORAGE_PREFIX}${userId}` : null;
   }
 
   function visibleNavigation(view) {
@@ -35,125 +52,195 @@
     return document.querySelector(`.nav-item[data-view="${normalized}"]:not(.hidden)`);
   }
 
+  function firstVisibleNavigation() {
+    return document.querySelector('.nav-item[data-view]:not(.hidden)');
+  }
+
   function activeNavigationView() {
-    const active = document.querySelector('.nav-item.active:not(.hidden)');
-    if (active?.dataset.view) return normalizeView(active.dataset.view);
+    const active = document.querySelector('.nav-item.active[data-view]:not(.hidden)');
+    return normalizeView(active?.dataset.view);
+  }
+
+  function readUrlView() {
     try {
-      return typeof currentView !== 'undefined' ? normalizeView(currentView) : '';
+      return normalizeView(new URL(window.location.href).searchParams.get(MODULE_PARAMETER));
     } catch (_) {
       return '';
     }
   }
 
-  function readSavedView(userId) {
+  function writeUrlView(view) {
+    const normalized = normalizeView(view);
+    if (!normalized) return;
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get(MODULE_PARAMETER) === normalized) return;
+      url.searchParams.set(MODULE_PARAMETER, normalized);
+      window.history.replaceState(
+        { ...(window.history.state || {}), kscModule: normalized },
+        '',
+        `${url.pathname}${url.search}${url.hash}`
+      );
+    } catch (_) {
+      // The module is still retained in browser storage when URL updates are blocked.
+    }
+  }
+
+  function readStoredView(userId) {
     const key = storageKey(userId);
     if (!key) return '';
     try {
-      return normalizeView(window.sessionStorage.getItem(key));
+      return normalizeView(
+        window.localStorage.getItem(key)
+        || window.sessionStorage.getItem(key)
+      );
     } catch (_) {
       return '';
     }
   }
 
-  function saveView(view, userId = currentUserId()) {
-    const key = storageKey(userId);
+  function persistView(view, userId = currentUserId()) {
     const normalized = normalizeView(view);
-    if (!key || !normalized || !visibleNavigation(normalized)) return;
-    try {
-      window.sessionStorage.setItem(key, normalized);
-    } catch (_) {
-      // Navigation continues normally when browser storage is unavailable.
+    if (!normalized || !visibleNavigation(normalized)) return false;
+
+    const key = storageKey(userId);
+    if (key) {
+      try {
+        window.localStorage.setItem(key, normalized);
+        window.sessionStorage.setItem(key, normalized);
+      } catch (_) {
+        // URL persistence remains available when browser storage is unavailable.
+      }
     }
+
+    writeUrlView(normalized);
+    return true;
+  }
+
+  function getSetView() {
+    try {
+      if (typeof setView === 'function') return setView;
+    } catch (_) {
+      // Fall through to the window property.
+    }
+    return typeof window.setView === 'function' ? window.setView : null;
+  }
+
+  function replaceSetView(handler) {
+    let replaced = false;
+    try {
+      setView = handler;
+      replaced = true;
+    } catch (_) {
+      // Some browser contexts expose only the window property.
+    }
+    try {
+      window.setView = handler;
+      replaced = true;
+    } catch (_) {
+      // No-op.
+    }
+    return replaced;
   }
 
   function syncUserState() {
     const userId = currentUserId();
-    if (userId === activeUserId) return userId;
-    activeUserId = userId;
-    navigationReady = false;
+    if (userId !== activeUserId) {
+      activeUserId = userId;
+      navigationReady = false;
+    }
     return userId;
   }
 
-  function installSetViewWrapper() {
-    if (typeof window.setView !== 'function') return false;
-    if (window.setView.__kscPersistentNavigation) return true;
-
-    baseSetView = window.setView;
-    const persistentSetView = function persistentSetView(view) {
-      const userId = syncUserState();
-      baseSetView(view);
-      if (!userId) return;
-      if (!navigationReady) {
-        window.setTimeout(restoreSavedModule, 0);
-        return;
-      }
-      saveView(activeNavigationView(), userId);
-    };
-    persistentSetView.__kscPersistentNavigation = true;
-    persistentSetView.__kscBaseSetView = baseSetView;
-    window.setView = persistentSetView;
-    return true;
+  function queueRestore() {
+    if (restoreQueued) return;
+    restoreQueued = true;
+    window.setTimeout(() => {
+      restoreQueued = false;
+      restoreModule();
+    }, 0);
   }
 
-  function restoreSavedModule() {
+  function installSetViewWrapper() {
+    const current = getSetView();
+    if (!current) return false;
+    if (current.__kscPersistentModuleNavigationV2) return true;
+
+    const baseSetView = current;
+    const wrappedSetView = function persistentModuleSetView(view) {
+      baseSetView(view);
+      const userId = syncUserState();
+      if (!userId || !navigationReady) {
+        queueRestore();
+        return;
+      }
+      persistView(activeNavigationView(), userId);
+    };
+
+    wrappedSetView.__kscPersistentModuleNavigationV2 = true;
+    wrappedSetView.__kscBaseSetView = baseSetView;
+    return replaceSetView(wrappedSetView);
+  }
+
+  function requestedView(userId) {
+    return readUrlView() || readStoredView(userId);
+  }
+
+  function restoreModule() {
     if (!installSetViewWrapper()) return false;
 
     const userId = syncUserState();
-    if (!userId || typeof profile === 'undefined' || !profile) return false;
+    if (!userId || !currentProfileReady()) return false;
 
-    const availableNavigation = document.querySelector('.nav-item:not(.hidden)');
-    if (!availableNavigation) return false;
+    const firstAvailable = firstVisibleNavigation();
+    if (!firstAvailable) return false;
 
-    const savedView = readSavedView(userId);
-    const target = visibleNavigation(savedView);
-    if (target) {
-      baseSetView(target.dataset.view);
-      navigationReady = true;
-      saveView(target.dataset.view, userId);
-      return true;
-    }
+    const requested = requestedView(userId);
+    const target = visibleNavigation(requested)
+      || visibleNavigation(activeNavigationView())
+      || firstAvailable;
 
-    const current = activeNavigationView();
-    const fallback = visibleNavigation(current) || availableNavigation;
-    baseSetView(fallback.dataset.view);
     navigationReady = true;
-    saveView(fallback.dataset.view, userId);
+    const view = normalizeView(target.dataset.view);
+    const current = getSetView();
+    if (current && view) current(view);
+    persistView(view, userId);
     return true;
-  }
-
-  function startRestoreLoop() {
-    window.clearInterval(restoreTimer);
-    window.clearTimeout(stopTimer);
-
-    restoreSavedModule();
-    restoreTimer = window.setInterval(() => {
-      const userId = syncUserState();
-      if (!userId) return;
-      if (!navigationReady) restoreSavedModule();
-    }, RESTORE_INTERVAL_MS);
-
-    stopTimer = window.setTimeout(() => {
-      window.clearInterval(restoreTimer);
-      restoreTimer = null;
-    }, RESTORE_TIMEOUT_MS);
   }
 
   document.addEventListener('click', (event) => {
     const button = event.target.closest?.('.nav-item[data-view]');
     if (!button || button.classList.contains('hidden')) return;
-    window.setTimeout(() => {
-      const userId = syncUserState();
-      const requestedView = normalizeView(button.dataset.view);
-      if (!userId || !requestedView || !visibleNavigation(requestedView)) return;
-      navigationReady = true;
-      saveView(requestedView, userId);
-    }, 0);
+
+    const userId = syncUserState();
+    const view = normalizeView(button.dataset.view);
+    if (!userId || !view || !visibleNavigation(view)) return;
+
+    navigationReady = true;
+    persistView(view, userId);
   }, true);
 
-  window.addEventListener('pageshow', startRestoreLoop);
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) startRestoreLoop();
+  window.addEventListener('popstate', () => {
+    const requested = readUrlView();
+    const target = visibleNavigation(requested);
+    const current = getSetView();
+    if (!target || !current) return;
+    navigationReady = true;
+    current(target.dataset.view);
   });
 
-  startRestoreLoop();
+  window.addEventListener('pageshow', queueRestore);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) queueRestore();
+  });
+
+  // Covers delayed Supabase session/profile loading and any extension that
+  // replaces setView after this file has loaded.
+  window.setInterval(() => {
+    installSetViewWrapper();
+    const userId = syncUserState();
+    if (userId && !navigationReady) restoreModule();
+  }, 250);
+
+  queueRestore();
 })();
