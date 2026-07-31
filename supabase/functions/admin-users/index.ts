@@ -7,6 +7,9 @@ const corsHeaders = {
 }
 
 const allowedRoles = new Set(['store_user', 'checker', 'executive', 'admin'])
+const paymentTypes = ['cash', 'gcash', 'maya', 'credit', 'debit', 'cheque', 'salmon', 'other'] as const
+const allowedPaymentTypes = new Set<string>(paymentTypes)
+const fullCheckerScope = Object.freeze({ all: true, payment_types: [...paymentTypes] })
 const allowedPermissions = new Set([
   'dashboard_view',
   'entry_view',
@@ -53,6 +56,25 @@ function sanitizePermissions(value: unknown): Record<string, boolean> {
     }
   }
   return result
+}
+
+function sanitizeCheckerScope(value: unknown, role: string) {
+  if (role !== 'checker') return { ...fullCheckerScope, payment_types: [...fullCheckerScope.payment_types] }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { ...fullCheckerScope, payment_types: [...fullCheckerScope.payment_types] }
+  }
+
+  const raw = value as Record<string, unknown>
+  const all = raw.all !== false
+  if (all) return { ...fullCheckerScope, payment_types: [...fullCheckerScope.payment_types] }
+
+  const requested = Array.isArray(raw.payment_types)
+    ? raw.payment_types.filter((item): item is string => typeof item === 'string' && allowedPaymentTypes.has(item))
+    : []
+  const selected = paymentTypes.filter((type) => requested.includes(type))
+
+  if (!selected.length) throw new Error('Select at least one payment type for the Deposit Checker.')
+  return { all: false, payment_types: selected }
 }
 
 function hasManageUsers(profile: { role?: string; permissions?: Record<string, boolean> | null }) {
@@ -110,7 +132,7 @@ Deno.serve(async (req) => {
 
       const { data: profiles, error: profileError } = await admin
         .from('profiles')
-        .select('id,email,full_name,role,branch_id,active,permissions,created_at,updated_at')
+        .select('id,email,full_name,role,branch_id,active,permissions,checker_scope,created_at,updated_at')
 
       if (profileError) throw profileError
       const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile]))
@@ -125,6 +147,7 @@ Deno.serve(async (req) => {
           branch_id: userProfile?.branch_id ?? null,
           active: Boolean(userProfile?.active),
           permissions: userProfile?.permissions ?? {},
+          checker_scope: userProfile?.checker_scope ?? fullCheckerScope,
           created_at: authUser.created_at,
           updated_at: userProfile?.updated_at ?? authUser.updated_at,
           last_sign_in_at: authUser.last_sign_in_at ?? null,
@@ -145,6 +168,7 @@ Deno.serve(async (req) => {
     const branchId = payload.branch_id ? String(payload.branch_id) : null
     const active = action === 'create_user' ? true : payload.active !== false
     const permissions = sanitizePermissions(payload.permissions)
+    const checkerScope = sanitizeCheckerScope(payload.checker_scope, role)
     const password = payload.password ? String(payload.password) : undefined
 
     if (!validEmail(email)) return jsonResponse({ error: 'Enter a valid email address.' }, 400)
@@ -180,6 +204,7 @@ Deno.serve(async (req) => {
           branch_id: branchId,
           active: true,
           permissions,
+          checker_scope: checkerScope,
         }, { onConflict: 'id' })
         .select('id,active')
         .single()
@@ -219,7 +244,7 @@ Deno.serve(async (req) => {
 
     const { data: updatedProfile, error: profileUpdateError } = await admin
       .from('profiles')
-      .update({ email, full_name: fullName, role, branch_id: branchId, active, permissions })
+      .update({ email, full_name: fullName, role, branch_id: branchId, active, permissions, checker_scope: checkerScope })
       .eq('id', userId)
       .select('id,active')
       .single()
