@@ -1,6 +1,16 @@
 'use strict';
 
 (function loadDepositCheckerScopeFeature() {
+  function loadMobilePolish() {
+    if (document.querySelector('link[data-ksc-mobile-polish]')) return;
+    const stylesheet = document.createElement('link');
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = './mobile-polish.css?v=20260731-1410';
+    stylesheet.dataset.kscMobilePolish = 'true';
+    document.head.appendChild(stylesheet);
+  }
+
+  loadMobilePolish();
   if (document.querySelector('script[data-ksc-checker-scope]')) return;
 
   function loadSupportingFeature(selector, source, attribute) {
