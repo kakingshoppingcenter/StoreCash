@@ -49,15 +49,15 @@
   function visibleNavigation(view) {
     const normalized = normalizeView(view);
     if (!normalized) return null;
-    return document.querySelector(`.nav-item[data-view="${normalized}"]:not(.hidden)`);
+    return document.querySelector(`.nav-item[data-view="${normalized}"]:not(.hidden):not([hidden])`);
   }
 
   function firstVisibleNavigation() {
-    return document.querySelector('.nav-item[data-view]:not(.hidden)');
+    return document.querySelector('.nav-item[data-view]:not(.hidden):not([hidden])');
   }
 
   function activeNavigationView() {
-    const active = document.querySelector('.nav-item.active[data-view]:not(.hidden)');
+    const active = document.querySelector('.nav-item.active[data-view]:not(.hidden):not([hidden])');
     return normalizeView(active?.dataset.view);
   }
 
@@ -210,7 +210,7 @@
 
   document.addEventListener('click', (event) => {
     const button = event.target.closest?.('.nav-item[data-view]');
-    if (!button || button.classList.contains('hidden')) return;
+    if (!button || button.classList.contains('hidden') || button.hidden) return;
 
     const userId = syncUserState();
     const view = normalizeView(button.dataset.view);
@@ -245,6 +245,15 @@
   queueRestore();
 })();
 
+(function loadPermissionGuard() {
+  if (document.querySelector('script[data-ksc-permission-guard]')) return;
+  const script = document.createElement('script');
+  script.src = './permission-guard.js?v=20260731-1845';
+  script.dataset.kscPermissionGuard = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
+
 (function loadProfessionalInterface() {
   function loadAnalyticsContrastFix() {
     let link = document.querySelector('link[data-ksc-analytics-contrast]');
@@ -254,14 +263,14 @@
       link.dataset.kscAnalyticsContrast = 'true';
       document.head.appendChild(link);
     }
-    link.href = './analytics-contrast-fix.css?v=20260731-1828';
+    link.href = './analytics-contrast-fix.css?v=20260731-1845';
   }
 
   loadAnalyticsContrastFix();
 
   if (document.querySelector('script[data-ksc-professional-ui]')) return;
   const script = document.createElement('script');
-  script.src = './professional-ui.js?v=20260731-1805';
+  script.src = './professional-ui.js?v=20260731-1845';
   script.dataset.kscProfessionalUi = 'true';
   script.async = false;
   script.addEventListener('load', loadAnalyticsContrastFix, { once: true });
