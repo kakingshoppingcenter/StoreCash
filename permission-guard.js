@@ -135,29 +135,38 @@
     return Boolean(permissions?.some((key) => permissionAllowed(key, target)));
   }
 
-  function setProtectedVisibility(element, allowed) {
+  function hideElement(element) {
     if (!element) return;
-    element.classList.toggle('hidden', !allowed);
-    element.toggleAttribute('hidden', !allowed);
-    element.setAttribute('aria-hidden', allowed ? 'false' : 'true');
-
-    if (!allowed) {
-      element.dataset.kscPermissionHidden = 'true';
+    if (!element.classList.contains('hidden')) element.classList.add('hidden');
+    if (!element.hidden) element.hidden = true;
+    if (element.getAttribute('aria-hidden') !== 'true') element.setAttribute('aria-hidden', 'true');
+    if (element.dataset.kscPermissionHidden !== 'true') element.dataset.kscPermissionHidden = 'true';
+    if (element.style.getPropertyValue('display') !== 'none' || element.style.getPropertyPriority('display') !== 'important') {
       element.style.setProperty('display', 'none', 'important');
-      if (element.matches('button,a,[tabindex]')) element.setAttribute('tabindex', '-1');
-      return;
     }
+    if (element.matches('button,a,[tabindex]') && element.getAttribute('tabindex') !== '-1') {
+      element.setAttribute('tabindex', '-1');
+    }
+  }
 
-    if (element.dataset.kscPermissionHidden === 'true') {
-      delete element.dataset.kscPermissionHidden;
-      element.style.removeProperty('display');
-      if (element.getAttribute('tabindex') === '-1') element.removeAttribute('tabindex');
-    }
+  function showElement(element) {
+    if (!element || element.dataset.kscPermissionHidden !== 'true') return;
+    element.classList.remove('hidden');
+    element.hidden = false;
+    element.setAttribute('aria-hidden', 'false');
+    delete element.dataset.kscPermissionHidden;
+    element.style.removeProperty('display');
+    if (element.getAttribute('tabindex') === '-1') element.removeAttribute('tabindex');
+  }
+
+  function setProtectedVisibility(element, allowed) {
+    if (allowed) showElement(element);
+    else hideElement(element);
   }
 
   function visibleNavigation() {
     return [...document.querySelectorAll('.nav-item[data-view]')]
-      .filter((button) => viewAllowed(button.dataset.view) && !button.hidden);
+      .filter((button) => viewAllowed(button.dataset.view) && !button.hidden && !button.classList.contains('hidden'));
   }
 
   function hideEmptyNavigationGroups() {
@@ -192,12 +201,16 @@
     if (!navigation.length) return;
 
     const active = document.querySelector('.nav-item.active[data-view]');
-    const requested = (() => {
-      try { return new URL(window.location.href).searchParams.get('module') || ''; }
-      catch (_) { return ''; }
-    })();
+    let requested = '';
+    try {
+      requested = new URL(window.location.href).searchParams.get('module') || '';
+    } catch (_) {
+      requested = '';
+    }
 
-    if (active && viewAllowed(active.dataset.view) && !active.hidden && viewAllowed(requested || active.dataset.view)) return;
+    const activeAllowed = active && viewAllowed(active.dataset.view) && !active.hidden && !active.classList.contains('hidden');
+    const requestedAllowed = !requested || viewAllowed(requested);
+    if (activeAllowed && requestedAllowed) return;
 
     const first = navigation[0];
     const view = first.dataset.view;
@@ -284,9 +297,7 @@
   const observer = new MutationObserver(() => enforcePermissions());
   observer.observe(document.documentElement, {
     subtree: true,
-    childList: true,
-    attributes: true,
-    attributeFilter: ['class', 'style', 'hidden', 'data-permission']
+    childList: true
   });
 
   window.addEventListener('pageshow', () => refreshOwnProfile(true));
