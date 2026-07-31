@@ -10,14 +10,6 @@
     document.head.appendChild(stylesheet);
   }
 
-  loadStylesheet(
-    'link[data-ksc-mobile-polish]',
-    './mobile-polish.css?v=20260731-1410',
-    'kscMobilePolish'
-  );
-
-  if (document.querySelector('script[data-ksc-checker-scope]')) return;
-
   function loadSupportingFeature(selector, source, attribute) {
     if (document.querySelector(selector)) return;
     const supportingScript = document.createElement('script');
@@ -26,6 +18,20 @@
     supportingScript.async = false;
     document.body.appendChild(supportingScript);
   }
+
+  loadStylesheet(
+    'link[data-ksc-mobile-polish]',
+    './mobile-polish.css?v=20260731-1410',
+    'kscMobilePolish'
+  );
+
+  loadSupportingFeature(
+    'script[data-ksc-navigation-state]',
+    './navigation-state.js?v=20260731-1737',
+    'kscNavigationState'
+  );
+
+  if (document.querySelector('script[data-ksc-checker-scope]')) return;
 
   const script = document.createElement('script');
   script.src = './checker-scope.js?v=20260730-1056';
