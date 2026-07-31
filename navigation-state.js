@@ -246,10 +246,24 @@
 })();
 
 (function loadProfessionalInterface() {
+  function loadAnalyticsContrastFix() {
+    let link = document.querySelector('link[data-ksc-analytics-contrast]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.dataset.kscAnalyticsContrast = 'true';
+      document.head.appendChild(link);
+    }
+    link.href = './analytics-contrast-fix.css?v=20260731-1828';
+  }
+
+  loadAnalyticsContrastFix();
+
   if (document.querySelector('script[data-ksc-professional-ui]')) return;
   const script = document.createElement('script');
   script.src = './professional-ui.js?v=20260731-1805';
   script.dataset.kscProfessionalUi = 'true';
   script.async = false;
+  script.addEventListener('load', loadAnalyticsContrastFix, { once: true });
   document.body.appendChild(script);
 })();
