@@ -1,0 +1,150 @@
+/* Deposit Checker authorized-field layout correction.
+   Keeps the scope summary aligned without changing calculations or permissions. */
+
+.comparison > .checker-authorized-panel {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 15px !important;
+  border: 1px solid #cfe0f5 !important;
+  border-radius: 13px !important;
+  background: #f6f9fe !important;
+}
+
+body .checker-authorized-head {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  width: 100% !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
+
+body .checker-authorized-head strong {
+  min-width: 0;
+  color: #24364f;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+body .checker-authorized-head span {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #68778c;
+  font-size: 10px;
+  line-height: 1.35;
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+body .checker-scope-chips {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr)) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+body .checker-scope-chip {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 34px !important;
+  padding: 7px 9px !important;
+  border-radius: 9px !important;
+  line-height: 1.25 !important;
+  text-align: center !important;
+  white-space: normal !important;
+}
+
+body .checker-scope-values {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+body .checker-scope-value {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  padding: 10px 11px !important;
+  text-align: left !important;
+}
+
+body .checker-scope-value span {
+  min-width: 0;
+  overflow: hidden;
+  color: #65748a;
+  font-size: 10px;
+  line-height: 1.3;
+  text-align: left !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body .checker-scope-value strong {
+  color: #17243a;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: right !important;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+body .checker-scope-notice,
+body .checker-scope-mismatch {
+  width: 100% !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
+
+@media (max-width: 980px) {
+  body .checker-scope-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body .checker-scope-chips {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 680px) {
+  body .checker-authorized-head {
+    display: grid !important;
+    justify-items: center !important;
+    gap: 5px !important;
+    text-align: center !important;
+  }
+
+  body .checker-authorized-head span {
+    margin-left: 0;
+    text-align: center !important;
+    white-space: normal;
+  }
+
+  body .checker-scope-chips {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body .checker-scope-values {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body .checker-scope-value {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  body .checker-scope-notice,
+  body .checker-scope-mismatch {
+    text-align: center !important;
+  }
+}
