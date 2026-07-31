@@ -31,24 +31,24 @@ body[data-module="audit"] .metrics{
 }
 
 body[data-module="entry"] .workspace,
-body[data-module="checker"] .workspace{
-  align-items:start;
-}
-
+body[data-module="checker"] .workspace,
 body[data-module="reports"] .lower-grid,
-body[data-module="checker"] .lower-grid{
-  align-items:start;
-}
-
+body[data-module="checker"] .lower-grid,
 body[data-module="dashboard"] .lower-grid,
 body[data-module="summary"] .lower-grid{
   align-items:start;
 }
 
+body[data-module="summary"] .summary-card{order:-1}
+
 @media(min-width:1181px){
   body[data-module="entry"] .entry-card,
   body[data-module="checker"] .checker-card{
     justify-self:start;
+  }
+
+  body[data-module="summary"] .lower-grid{
+    grid-template-columns:minmax(340px,.9fr) minmax(0,1.45fr)!important;
   }
 
   body[data-module="checker"] .checker-card .comparison{
