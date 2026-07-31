@@ -1,0 +1,53 @@
+/* High-contrast analytics status cards.
+   Loaded after the dashboard and professional UI layers. */
+
+html body #dashboardAnalytics .analytics-stats #statMatchedCard.analytics-stat.success,
+html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.success{
+  background:linear-gradient(135deg,#ecfdf3 0%,#f7fffa 100%)!important;
+  border-color:#9ed8b5!important;
+  box-shadow:0 8px 24px rgba(17,129,72,.09)!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statMatchedCard.analytics-stat.success::after,
+html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.success::after{
+  background:linear-gradient(145deg,rgba(17,129,72,.13),rgba(17,129,72,.025))!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statMatchedCard.analytics-stat.success .analytics-stat-label,
+html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.success .analytics-stat-label{
+  color:#176b3a!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statMatchedCard.analytics-stat.success .analytics-stat-value,
+html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.success .analytics-stat-value{
+  color:#102a1d!important;
+  text-shadow:none!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statMatchedCard.analytics-stat.success .analytics-stat-note,
+html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.success .analytics-stat-note{
+  color:#476b58!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.alert{
+  background:linear-gradient(135deg,#fff1ef 0%,#fff9f8 100%)!important;
+  border-color:#f1b7b0!important;
+  box-shadow:0 8px 24px rgba(180,35,24,.08)!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.alert::after{
+  background:linear-gradient(145deg,rgba(180,35,24,.12),rgba(180,35,24,.02))!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.alert .analytics-stat-label{
+  color:#9b2c22!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.alert .analytics-stat-value{
+  color:#621b15!important;
+  text-shadow:none!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.alert .analytics-stat-note{
+  color:#7c4b46!important;
+}
