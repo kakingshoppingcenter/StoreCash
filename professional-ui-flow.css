@@ -1,0 +1,83 @@
+/* Module-flow refinements loaded after the primary professional design. */
+
+body[data-module="entry"] .workspace,
+body[data-module="checker"] .workspace,
+body[data-module="reports"] .lower-grid,
+body[data-module="checker"] .lower-grid{
+  grid-template-columns:minmax(0,1fr)!important;
+}
+
+body[data-module="entry"] .entry-card,
+body[data-module="checker"] .checker-card{
+  width:100%;
+  max-width:1120px;
+}
+
+body[data-module="checker"] .checker-card{max-width:980px}
+body[data-module="reports"] .table-card{width:100%}
+
+body[data-module="administration"] .toolbar,
+body[data-module="audit"] .toolbar{
+  margin-bottom:16px!important;
+}
+
+body[data-module="administration"] .metrics,
+body[data-module="entry"] .metrics,
+body[data-module="checker"] .metrics,
+body[data-module="reports"] .metrics,
+body[data-module="summary"] .metrics,
+body[data-module="audit"] .metrics{
+  display:none!important;
+}
+
+body[data-module="entry"] .workspace,
+body[data-module="checker"] .workspace{
+  align-items:start;
+}
+
+body[data-module="reports"] .lower-grid,
+body[data-module="checker"] .lower-grid{
+  align-items:start;
+}
+
+body[data-module="dashboard"] .lower-grid,
+body[data-module="summary"] .lower-grid{
+  align-items:start;
+}
+
+@media(min-width:1181px){
+  body[data-module="entry"] .entry-card,
+  body[data-module="checker"] .checker-card{
+    justify-self:start;
+  }
+
+  body[data-module="checker"] .checker-card .comparison{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    column-gap:18px!important;
+  }
+
+  body[data-module="checker"] .checker-card .comparison>label:first-child,
+  body[data-module="checker"] .checker-card .checker-authorized-panel,
+  body[data-module="checker"] .checker-card #verifyBtn{
+    grid-column:1/-1;
+  }
+
+  body[data-module="checker"] .checker-card .comparison>div:not(.checker-authorized-panel){
+    min-height:52px;
+    padding:10px 12px!important;
+    border:1px solid #e3e9f1!important;
+    border-radius:10px;
+    background:#fbfcfe;
+  }
+}
+
+@media(max-width:700px){
+  body[data-module="entry"] .entry-card,
+  body[data-module="checker"] .checker-card{
+    max-width:none;
+  }
+
+  body[data-module="checker"] .checker-card .comparison{
+    grid-template-columns:1fr!important;
+  }
+}
