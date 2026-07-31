@@ -1,16 +1,21 @@
 'use strict';
 
 (function loadDepositCheckerScopeFeature() {
-  function loadMobilePolish() {
-    if (document.querySelector('link[data-ksc-mobile-polish]')) return;
+  function loadStylesheet(selector, source, datasetKey) {
+    if (document.querySelector(selector)) return;
     const stylesheet = document.createElement('link');
     stylesheet.rel = 'stylesheet';
-    stylesheet.href = './mobile-polish.css?v=20260731-1410';
-    stylesheet.dataset.kscMobilePolish = 'true';
+    stylesheet.href = source;
+    stylesheet.dataset[datasetKey] = 'true';
     document.head.appendChild(stylesheet);
   }
 
-  loadMobilePolish();
+  loadStylesheet(
+    'link[data-ksc-mobile-polish]',
+    './mobile-polish.css?v=20260731-1410',
+    'kscMobilePolish'
+  );
+
   if (document.querySelector('script[data-ksc-checker-scope]')) return;
 
   function loadSupportingFeature(selector, source, attribute) {
@@ -27,6 +32,12 @@
   script.dataset.kscCheckerScope = 'true';
   script.async = false;
   script.onload = () => {
+    loadStylesheet(
+      'link[data-ksc-checker-layout]',
+      './checker-layout.css?v=20260731-1704',
+      'kscCheckerLayout'
+    );
+
     loadSupportingFeature(
       'script[data-ksc-checker-scope-sync]',
       './checker-scope-sync.js?v=20260730-1056',
