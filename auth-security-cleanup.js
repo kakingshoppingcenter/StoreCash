@@ -45,7 +45,10 @@
       clearHtml('branch');
 
       ['branchDeleteSummary', 'systemResetMessage', 'systemResetStatus'].forEach((id) => clearHtml(id));
-      ['branchDeleteConfirmation', 'systemResetReason', 'systemResetPhrase', 'userPassword', 'loginPassword']
+      // Do not clear loginPassword here. This scrub runs repeatedly while the
+      // login page is open, which would erase characters while the user types.
+      // auth-security.js already clears the login password once during sign-out.
+      ['branchDeleteConfirmation', 'systemResetReason', 'systemResetPhrase', 'userPassword']
         .forEach((id) => clearValue(id));
 
       document.querySelectorAll('[data-reset-count]').forEach((target) => { target.textContent = '0'; });
