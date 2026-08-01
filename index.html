@@ -15,6 +15,97 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260731074020" />
   <link rel="stylesheet" href="admin.css?v=20260731074020" />
+  <style id="kscCriticalPhoneLogin">
+    @media (max-width:760px){
+      html,body{width:100%;min-height:100%;overflow-x:hidden}
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]){
+        display:flex!important;
+        flex-direction:column!important;
+        grid-template-columns:none!important;
+        grid-template-rows:none!important;
+        width:100%!important;
+        min-width:0!important;
+        height:auto!important;
+        min-height:100svh!important;
+        max-height:none!important;
+        overflow:visible!important;
+        position:relative!important;
+        inset:auto!important;
+        transform:none!important;
+      }
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]) .auth-brand-panel{
+        width:100%!important;
+        min-width:0!important;
+        min-height:0!important;
+        height:auto!important;
+        flex:0 0 auto!important;
+        padding:calc(16px + env(safe-area-inset-top)) 14px 14px!important;
+      }
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]) .auth-brand-content{
+        width:100%!important;
+        max-width:520px!important;
+        margin:0 auto!important;
+        text-align:center!important;
+      }
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]) .brand-logo.large{
+        width:58px!important;
+        height:58px!important;
+        margin:0 auto 6px!important;
+      }
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]) .auth-brand-content h1{
+        margin:5px 0 7px!important;
+        font-size:28px!important;
+        line-height:1.12!important;
+        text-align:center!important;
+      }
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]) .auth-brand-content>p:not(.eyebrow){
+        max-width:440px!important;
+        margin:0 auto!important;
+        font-size:11px!important;
+        line-height:1.45!important;
+        text-align:center!important;
+      }
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]) .auth-features{
+        display:none!important;
+      }
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]) .auth-form-panel{
+        display:flex!important;
+        width:100%!important;
+        min-width:0!important;
+        min-height:0!important;
+        height:auto!important;
+        flex:1 0 auto!important;
+        align-items:flex-start!important;
+        justify-content:center!important;
+        padding:12px 12px calc(20px + env(safe-area-inset-bottom))!important;
+        overflow:visible!important;
+      }
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]) #loginForm{
+        display:grid!important;
+        width:100%!important;
+        max-width:480px!important;
+        min-width:0!important;
+        margin:0 auto!important;
+        padding:20px 16px!important;
+        gap:14px!important;
+        position:relative!important;
+        visibility:visible!important;
+        opacity:1!important;
+        transform:none!important;
+      }
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]) #loginEmail,
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]) #loginPassword,
+      html body #authScreen.auth-screen:not(.hidden):not([hidden]) #loginBtn{
+        display:block!important;
+        width:100%!important;
+        min-height:50px!important;
+        visibility:visible!important;
+        opacity:1!important;
+        pointer-events:auto!important;
+        font-size:16px!important;
+      }
+    }
+  </style>
 </head>
 <body>
   <section id="authScreen" class="auth-screen">
@@ -101,7 +192,7 @@
       <section class="workspace">
         <article class="card entry-card" data-section="entry">
           <div class="card-head">
-            <div><h3>Daily Store Entry</h3><p>Encode the complete payment summary for one branch and business date.</p></div>
+            <div><h3>Daily Store Entry</h3><p>Encode and submit one complete branch payment summary for the selected business date.</p></div>
             <span class="badge neutral" id="entryStatus">New Report</span>
           </div>
           <form id="entryForm">
@@ -245,6 +336,6 @@
   <script src="config.js?v=20260731074020"></script>
   <script src="app.js?v=20260731074020"></script>
   <script src="admin.js?v=20260731074020"></script>
-  <script data-ksc-navigation-state="true" src="navigation-state.js?v=20260801-1123"></script>
+  <script data-ksc-navigation-state="true" src="navigation-state.js?v=20260801-1324"></script>
 </body>
 </html>
