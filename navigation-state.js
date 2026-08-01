@@ -10,7 +10,7 @@
 
   if (document.querySelector('script[data-ksc-auth-security]')) return;
   const script = document.createElement('script');
-  script.src = './auth-security.js?v=20260801-0835';
+  script.src = './auth-security.js?v=20260801-0915';
   script.dataset.kscAuthSecurity = 'true';
   script.async = false;
   document.body.appendChild(script);
@@ -19,7 +19,7 @@
 (function loadSignedOutDomCleanup() {
   if (document.querySelector('script[data-ksc-auth-cleanup]')) return;
   const script = document.createElement('script');
-  script.src = './auth-security-cleanup.js?v=20260801-0835';
+  script.src = './auth-security-cleanup.js?v=20260801-0915';
   script.dataset.kscAuthCleanup = 'true';
   script.async = false;
   document.body.appendChild(script);
