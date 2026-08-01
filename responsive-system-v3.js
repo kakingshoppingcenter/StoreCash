@@ -4,6 +4,21 @@
   if (window.__KSC_RESPONSIVE_SYSTEM_V3__) return;
   window.__KSC_RESPONSIVE_SYSTEM_V3__ = true;
 
+  function installResponsiveStyles() {
+    let stylesheet = document.querySelector('link[data-ksc-responsive-system-v3]');
+    if (!stylesheet) {
+      stylesheet = document.createElement('link');
+      stylesheet.rel = 'stylesheet';
+      stylesheet.dataset.kscResponsiveSystemV3 = 'true';
+      // Keep the final authority in the body so the legacy professional head
+      // observer cannot move another stylesheet after it.
+      document.body.appendChild(stylesheet);
+    }
+    stylesheet.href = './responsive-system-v3.css?v=20260801-1123';
+  }
+
+  installResponsiveStyles();
+
   const TABLE_HEADERS = new WeakMap();
   let framePending = false;
   let lastViewport = '';
@@ -157,6 +172,7 @@
   });
 
   function initialize() {
+    installResponsiveStyles();
     applyEnhancements();
     observer.observe(document.body, {
       subtree: true,
