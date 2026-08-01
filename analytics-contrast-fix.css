@@ -1,5 +1,90 @@
-/* High-contrast analytics status cards.
-   Loaded after the dashboard and professional UI layers. */
+/* High-contrast analytics status cards and critical phone authentication layout.
+   Loaded after the dashboard, authentication security, and professional UI layers. */
+
+/*
+ * The authentication security guard intentionally forces #authScreen to display
+ * while signed out. Its ID-based desktop grid rule is more specific than the
+ * normal phone styles, which previously placed the login form in an off-screen
+ * second column. Keep the security state, but make the signed-out phone screen
+ * a single vertical, scrollable layout.
+ */
+@media (max-width:760px){
+  html body.ksc-auth-locked #authScreen.auth-screen,
+  html body:not(.ksc-authenticated) #authScreen.auth-screen:not(.hidden):not([hidden]){
+    display:flex!important;
+    flex-direction:column!important;
+    grid-template-columns:1fr!important;
+    grid-template-rows:auto auto!important;
+    width:100%!important;
+    height:auto!important;
+    min-height:100dvh!important;
+    max-height:none!important;
+    overflow-x:hidden!important;
+    overflow-y:visible!important;
+  }
+
+  html body.ksc-auth-locked #authScreen .auth-brand-panel,
+  html body:not(.ksc-authenticated) #authScreen .auth-brand-panel{
+    width:100%!important;
+    min-width:0!important;
+    min-height:0!important;
+    height:auto!important;
+    flex:0 0 auto!important;
+  }
+
+  html body.ksc-auth-locked #authScreen .auth-form-panel,
+  html body:not(.ksc-authenticated) #authScreen .auth-form-panel{
+    display:flex!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:0!important;
+    height:auto!important;
+    flex:1 0 auto!important;
+    align-items:flex-start!important;
+    justify-content:center!important;
+    overflow:visible!important;
+  }
+
+  html body.ksc-auth-locked #authScreen #loginForm,
+  html body:not(.ksc-authenticated) #authScreen #loginForm{
+    display:grid!important;
+    width:100%!important;
+    max-width:480px!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:relative!important;
+    transform:none!important;
+  }
+
+  html body.ksc-auth-locked #authScreen #loginEmail,
+  html body.ksc-auth-locked #authScreen #loginPassword,
+  html body:not(.ksc-authenticated) #authScreen #loginEmail,
+  html body:not(.ksc-authenticated) #authScreen #loginPassword{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    pointer-events:auto!important;
+  }
+}
+
+@media (max-width:760px) and (max-height:700px){
+  html body.ksc-auth-locked #authScreen .auth-brand-panel,
+  html body:not(.ksc-authenticated) #authScreen .auth-brand-panel{
+    padding-top:calc(12px + env(safe-area-inset-top))!important;
+    padding-bottom:12px!important;
+  }
+
+  html body.ksc-auth-locked #authScreen .auth-features,
+  html body:not(.ksc-authenticated) #authScreen .auth-features{
+    display:none!important;
+  }
+
+  html body.ksc-auth-locked #authScreen .brand-logo.large,
+  html body:not(.ksc-authenticated) #authScreen .brand-logo.large{
+    width:54px!important;
+    height:54px!important;
+  }
+}
 
 html body #dashboardAnalytics .analytics-stats #statMatchedCard.analytics-stat.success,
 html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.success{
