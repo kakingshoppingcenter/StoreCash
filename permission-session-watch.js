@@ -4,12 +4,12 @@
   const guards = [
     {
       selector: 'script[data-ksc-module-view-guard]',
-      source: './module-view-guard.js?v=20260801-1505',
+      source: './module-view-guard.js?v=20260801-1510',
       attribute: 'kscModuleViewGuard'
     },
     {
       selector: 'script[data-ksc-dashboard-analytics-guard]',
-      source: './dashboard-analytics-guard.js?v=20260801-1505',
+      source: './dashboard-analytics-guard.js?v=20260801-1510',
       attribute: 'kscDashboardAnalyticsGuard'
     }
   ];
