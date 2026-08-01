@@ -299,3 +299,12 @@
   script.addEventListener('load', loadAnalyticsContrastFix, { once: true });
   document.body.appendChild(script);
 })();
+
+(function loadUnifiedResponsiveSystem() {
+  if (document.querySelector('script[data-ksc-responsive-system-v3]')) return;
+  const script = document.createElement('script');
+  script.src = './responsive-system-v3.js?v=20260801-1123';
+  script.dataset.kscResponsiveSystemV3 = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
