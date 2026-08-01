@@ -1,8 +1,8 @@
 'use strict';
 
 (function installAuthenticationSecurityGuard() {
-  if (window.__KSC_AUTH_SECURITY_V2__) return;
-  window.__KSC_AUTH_SECURITY_V2__ = true;
+  if (window.__KSC_AUTH_SECURITY_V3__) return;
+  window.__KSC_AUTH_SECURITY_V3__ = true;
 
   const LOCKED_CLASS = 'ksc-auth-locked';
   const AUTHENTICATED_CLASS = 'ksc-authenticated';
@@ -159,8 +159,7 @@
       ['actualReceived', '0'], ['reading', '0'], ['checkerRemarks', ''],
       ['receivedBy', ''], ['customers', '0'], ['storeRemarks', ''],
       ['reportSearch', ''], ['userFullName', ''], ['userEmail', ''],
-      ['userPassword', ''], ['branchCode', ''], ['branchName', ''],
-      ['loginPassword', '']
+      ['userPassword', ''], ['branchCode', ''], ['branchName', '']
     ].forEach(([id, value]) => setValue(id, value));
 
     document.querySelectorAll('#paymentFields input').forEach((input) => { input.value = '0'; });
@@ -261,6 +260,9 @@
       shell.style.removeProperty('pointer-events');
     }
 
+    // Remove the credential after authentication succeeds, not while the user
+    // is still entering it on the signed-out screen.
+    setValue('loginPassword', '');
     setText('authMessage', '');
     return true;
   }
@@ -323,6 +325,8 @@
     const client = database();
     const userId = activeSession()?.user?.id || null;
 
+    // Clear credentials at the actual sign-out boundary only.
+    setValue('loginPassword', '');
     lockApplication('Signing out securely…');
     removeModuleStorage(userId);
 
@@ -423,7 +427,10 @@
   const client = database();
   if (client?.auth?.onAuthStateChange) {
     client.auth.onAuthStateChange((event, nextSession) => {
-      if (event === 'SIGNED_OUT' || !nextSession) lockApplication('');
+      if (event === 'SIGNED_OUT' || !nextSession) {
+        setValue('loginPassword', '');
+        lockApplication('');
+      }
     });
   }
 
