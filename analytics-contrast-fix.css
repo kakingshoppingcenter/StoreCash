@@ -1,6 +1,14 @@
 /* High-contrast analytics status cards and critical phone authentication layout.
    Loaded after the dashboard, authentication security, and professional UI layers. */
 
+/* Hidden and inactive UI states must always override responsive presentation.
+   This prevents notices, unauthorized modules, dialogs, and inactive views from
+   being displayed by later rules such as .notice{display:grid!important}. */
+html body .hidden,
+html body .view-hidden{
+  display:none!important;
+}
+
 /*
  * The authentication security guard intentionally forces #authScreen to display
  * while signed out. Its ID-based desktop grid rule is more specific than the
