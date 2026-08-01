@@ -16,6 +16,15 @@
   document.body.appendChild(script);
 })();
 
+(function loadSignedOutDomCleanup() {
+  if (document.querySelector('script[data-ksc-auth-cleanup]')) return;
+  const script = document.createElement('script');
+  script.src = './auth-security-cleanup.js?v=20260801-0835';
+  script.dataset.kscAuthCleanup = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
+
 (function installPersistentModuleNavigation() {
   if (window.__KSC_MODULE_NAVIGATION_V2__) return;
   window.__KSC_MODULE_NAVIGATION_V2__ = true;
