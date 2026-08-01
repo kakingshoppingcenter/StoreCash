@@ -150,7 +150,11 @@
     button.classList.add('profile-action-button');
     button.title = title;
     button.setAttribute('aria-label', title);
-    button.innerHTML = `${icon}<span class="profile-action-label">${label}</span>`;
+
+    if (button.dataset.profileActionLabel !== label) {
+      button.innerHTML = `${icon}<span class="profile-action-label">${label}</span>`;
+      button.dataset.profileActionLabel = label;
+    }
   }
 
   function connectDesktopLayout() {
@@ -172,7 +176,8 @@
     decorateButton(passwordButton, LOCK_ICON, 'Change Password', 'Change Password');
     decorateButton(logoutButton, SIGN_OUT_ICON, 'Sign Out', 'Sign Out');
 
-    actions.append(passwordButton, logoutButton);
+    if (passwordButton.parentElement !== actions) actions.appendChild(passwordButton);
+    if (logoutButton.parentElement !== actions) actions.appendChild(logoutButton);
     return true;
   }
 
