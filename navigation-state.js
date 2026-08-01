@@ -4,7 +4,7 @@
   if (!document.getElementById('kscImmediateAuthVisibility')) {
     const style = document.createElement('style');
     style.id = 'kscImmediateAuthVisibility';
-    style.textContent = 'html body #appShell.hidden,html body #appShell[hidden],html body #appShell[aria-hidden="true"]{display:none!important;visibility:hidden!important;pointer-events:none!important}';
+    style.textContent = 'html body .hidden,html body .view-hidden{display:none!important}html body #appShell.hidden,html body #appShell[hidden],html body #appShell[aria-hidden="true"]{display:none!important;visibility:hidden!important;pointer-events:none!important}';
     document.head.appendChild(style);
   }
 
@@ -286,7 +286,7 @@
       link.dataset.kscAnalyticsContrast = 'true';
       document.head.appendChild(link);
     }
-    link.href = './analytics-contrast-fix.css?v=20260801-0835';
+    link.href = './analytics-contrast-fix.css?v=20260801-1345';
   }
 
   loadAnalyticsContrastFix();
