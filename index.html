@@ -185,7 +185,7 @@
         <div class="connection-status"><span id="connectionDot" class="dot"></span><span id="connectionText">Connecting to Supabase…</span></div>
       </section>
 
-      <section class="metrics" data-section="dashboard">
+      <section class="metrics" data-section="dashboard" data-permission="dashboard_view">
         <article><span>Reported Total</span><strong id="metricReported">₱0.00</strong><small>Selected business date</small></article>
         <article><span>Actual Received</span><strong id="metricActual">₱0.00</strong><small>Verified deposits</small></article>
         <article><span>Net Difference</span><strong id="metricDifference">₱0.00</strong><small>Actual minus reported</small></article>
@@ -193,7 +193,7 @@
       </section>
 
       <section class="workspace">
-        <article class="card entry-card" data-section="entry">
+        <article class="card entry-card" data-section="entry" data-permission="entry_view">
           <div class="card-head">
             <div><h3>Daily Store Entry</h3><p>Encode the complete payment summary for one branch and business date.</p></div>
             <span class="badge neutral" id="entryStatus">New Report</span>
@@ -216,7 +216,7 @@
           </form>
         </article>
 
-        <article class="card checker-card" data-section="checker">
+        <article class="card checker-card" data-section="checker" data-permission="checker_view">
           <div class="card-head">
             <div><h3>Deposit Checker</h3><p>Validate a submitted branch report against the amount actually received.</p></div>
             <span class="badge pending" id="checkerStatus">Select Report</span>
@@ -236,7 +236,7 @@
       </section>
 
       <section class="lower-grid">
-        <article class="card table-card" data-section="reports">
+        <article class="card table-card" data-section="reports" data-permission="reports_view">
           <div class="card-head">
             <div><h3>Branch Submissions</h3><p>Daily submission and reconciliation status by branch.</p></div>
             <div class="table-controls"><input id="reportSearch" type="search" placeholder="Search branch or status" /></div>
@@ -249,14 +249,14 @@
           </div>
         </article>
 
-        <article class="card summary-card" data-section="summary">
+        <article class="card summary-card" data-section="summary" data-permission="summary_view">
           <div class="card-head"><div><h3>Executive Daily View</h3><p>Selected branch detail for management review.</p></div></div>
           <label>Branch Report<select id="summaryReportSelect"></select></label>
           <div id="executiveSummary" class="summary-content"></div>
         </article>
       </section>
 
-      <section class="card audit-card" data-section="audit">
+      <section class="card audit-card" data-section="audit" data-permission="audit_view">
         <div class="card-head"><div><h3>Audit Trail</h3><p>Recorded changes to reports and deposit verifications.</p></div></div>
         <div class="table-wrap">
           <table>
@@ -266,7 +266,7 @@
         </div>
       </section>
 
-      <section class="admin-shell" data-section="administration">
+      <section class="admin-shell" data-section="administration" data-permission="manage_users,manage_branches">
         <div class="admin-intro">
           <div><h3>System Administration</h3><p>Create branches and authorized accounts directly from the web system. Permissions are enforced in both the interface and Supabase Row Level Security.</p></div>
           <span class="badge matched">Secure Administration</span>
@@ -339,8 +339,8 @@
   <script src="config.js?v=20260731074020"></script>
   <script src="app.js?v=20260731074020"></script>
   <script src="admin.js?v=20260731074020"></script>
-  <script data-ksc-permission-navigation-v2="true" src="permission-navigation-v2.js?v=20260801-1415"></script>
-  <script data-ksc-permission-session-watch="true" src="permission-session-watch.js?v=20260801-1415"></script>
-  <script data-ksc-navigation-state="true" src="navigation-state.js?v=20260801-1415"></script>
+  <script data-ksc-permission-navigation-v2="true" src="permission-navigation-v2.js?v=20260801-1430"></script>
+  <script data-ksc-permission-session-watch="true" src="permission-session-watch.js?v=20260801-1430"></script>
+  <script data-ksc-navigation-state="true" src="navigation-state.js?v=20260801-1430"></script>
 </body>
 </html>
