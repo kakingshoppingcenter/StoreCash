@@ -51,6 +51,10 @@
     }
   }
 
+  function setText(element, value) {
+    if (element && element.textContent !== value) element.textContent = value;
+  }
+
   function correctCoverage(section) {
     if (!section) return;
     const scopedReports = accessibleReports();
@@ -58,10 +62,11 @@
     const submitted = new Set(scopedReports.map((report) => report.branch_id).filter(Boolean)).size;
     const coverage = activeBranches ? Math.round((submitted / activeBranches) * 100) : 0;
 
-    const value = section.querySelector('#statCoverage');
-    const note = section.querySelector('#statCoverageNote');
-    if (value) value.textContent = `${coverage}%`;
-    if (note) note.textContent = `${submitted} of ${activeBranches} active ${activeBranches === 1 ? 'branch' : 'branches'}`;
+    setText(section.querySelector('#statCoverage'), `${coverage}%`);
+    setText(
+      section.querySelector('#statCoverageNote'),
+      `${submitted} of ${activeBranches} active ${activeBranches === 1 ? 'branch' : 'branches'}`
+    );
   }
 
   function secureAnalytics() {
@@ -84,7 +89,9 @@
 
       const dashboardActive = activeView() === 'dashboard';
       section.classList.toggle('view-hidden', !dashboardActive);
-      section.setAttribute('aria-hidden', dashboardActive ? 'false' : 'true');
+      if (section.getAttribute('aria-hidden') !== (dashboardActive ? 'false' : 'true')) {
+        section.setAttribute('aria-hidden', dashboardActive ? 'false' : 'true');
+      }
       correctCoverage(section);
     } finally {
       syncing = false;
