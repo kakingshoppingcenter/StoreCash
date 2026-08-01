@@ -17,6 +17,18 @@
   let syncing = false;
   let framePending = false;
 
+  function installModuleStyles() {
+    if (document.getElementById('kscModuleViewGuardStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'kscModuleViewGuardStyles';
+    style.textContent = `
+      body:not([data-module="dashboard"]) #dashboardAnalytics{display:none!important}
+      body[data-module="entry"] .toolbar{display:none!important}
+      body[data-module="entry"] .workspace{margin-top:0!important}
+    `;
+    document.head.appendChild(style);
+  }
+
   function normalize(value) {
     return String(value || '').trim().toLowerCase();
   }
@@ -132,6 +144,7 @@
   });
 
   function initialize() {
+    installModuleStyles();
     observer.observe(document.documentElement, {
       subtree: true,
       childList: true,
