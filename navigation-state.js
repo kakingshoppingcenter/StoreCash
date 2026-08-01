@@ -1,5 +1,21 @@
 'use strict';
 
+(function loadAuthenticationSecurityGuard() {
+  if (!document.getElementById('kscImmediateAuthVisibility')) {
+    const style = document.createElement('style');
+    style.id = 'kscImmediateAuthVisibility';
+    style.textContent = 'html body #appShell.hidden,html body #appShell[hidden],html body #appShell[aria-hidden="true"]{display:none!important;visibility:hidden!important;pointer-events:none!important}';
+    document.head.appendChild(style);
+  }
+
+  if (document.querySelector('script[data-ksc-auth-security]')) return;
+  const script = document.createElement('script');
+  script.src = './auth-security.js?v=20260801-0835';
+  script.dataset.kscAuthSecurity = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
+
 (function installPersistentModuleNavigation() {
   if (window.__KSC_MODULE_NAVIGATION_V2__) return;
   window.__KSC_MODULE_NAVIGATION_V2__ = true;
@@ -234,8 +250,6 @@
     if (!document.hidden) queueRestore();
   });
 
-  // Covers delayed Supabase session/profile loading and any extension that
-  // replaces setView after this file has loaded.
   window.setInterval(() => {
     installSetViewWrapper();
     const userId = syncUserState();
@@ -248,7 +262,7 @@
 (function loadPermissionGuard() {
   if (document.querySelector('script[data-ksc-permission-guard]')) return;
   const script = document.createElement('script');
-  script.src = './permission-guard.js?v=20260731-1845';
+  script.src = './permission-guard.js?v=20260801-0835';
   script.dataset.kscPermissionGuard = 'true';
   script.async = false;
   document.body.appendChild(script);
@@ -263,14 +277,14 @@
       link.dataset.kscAnalyticsContrast = 'true';
       document.head.appendChild(link);
     }
-    link.href = './analytics-contrast-fix.css?v=20260731-1845';
+    link.href = './analytics-contrast-fix.css?v=20260801-0835';
   }
 
   loadAnalyticsContrastFix();
 
   if (document.querySelector('script[data-ksc-professional-ui]')) return;
   const script = document.createElement('script');
-  script.src = './professional-ui.js?v=20260731-1845';
+  script.src = './professional-ui.js?v=20260801-0835';
   script.dataset.kscProfessionalUi = 'true';
   script.async = false;
   script.addEventListener('load', loadAnalyticsContrastFix, { once: true });
