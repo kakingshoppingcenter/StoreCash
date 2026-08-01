@@ -1,5 +1,29 @@
 'use strict';
 
+(function loadDynamicModuleGuards() {
+  const guards = [
+    {
+      selector: 'script[data-ksc-module-view-guard]',
+      source: './module-view-guard.js?v=20260801-1505',
+      attribute: 'kscModuleViewGuard'
+    },
+    {
+      selector: 'script[data-ksc-dashboard-analytics-guard]',
+      source: './dashboard-analytics-guard.js?v=20260801-1505',
+      attribute: 'kscDashboardAnalyticsGuard'
+    }
+  ];
+
+  guards.forEach(({ selector, source, attribute }) => {
+    if (document.querySelector(selector)) return;
+    const script = document.createElement('script');
+    script.src = source;
+    script.dataset[attribute] = 'true';
+    script.async = false;
+    document.body.appendChild(script);
+  });
+})();
+
 (function installPermissionSessionWatch() {
   if (window.__KSC_PERMISSION_SESSION_WATCH__) return;
   window.__KSC_PERMISSION_SESSION_WATCH__ = true;
