@@ -1,5 +1,14 @@
 'use strict';
 
+(function loadReportingPeriodController() {
+  if (document.querySelector('script[data-ksc-reporting-range]')) return;
+  const script = document.createElement('script');
+  script.src = './reporting-range.js?v=20260803-1408';
+  script.dataset.kscReportingRange = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
+
 (function loadDynamicModuleGuards() {
   const guards = [
     {
