@@ -9,6 +9,15 @@
   document.body.appendChild(script);
 })();
 
+(function loadReportingRangeAlignment() {
+  if (document.querySelector('script[data-ksc-reporting-range-alignment]')) return;
+  const script = document.createElement('script');
+  script.src = './reporting-range-alignment.js?v=20260803-1455';
+  script.dataset.kscReportingRangeAlignment = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
+
 (function loadDynamicModuleGuards() {
   const guards = [
     {
