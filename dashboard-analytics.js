@@ -4,12 +4,25 @@
   const PAYMENT_COLORS = ['#1268e8', '#18a46b', '#7259d9', '#e9a23b', '#37a5c9', '#d35d6e', '#6b7d91', '#9e7a4c'];
 
   function loadAnalyticsStyles() {
-    if (document.querySelector('link[data-ksc-dashboard-analytics]')) return;
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = './dashboard-analytics.css?v=20260730-0840';
-    link.dataset.kscDashboardAnalytics = 'true';
-    document.head.appendChild(link);
+    if (!document.querySelector('link[data-ksc-dashboard-analytics]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = './dashboard-analytics.css?v=20260730-0840';
+      link.dataset.kscDashboardAnalytics = 'true';
+      document.head.appendChild(link);
+    }
+
+    if (!document.getElementById('kscScopedReconciliationStyles')) {
+      const style = document.createElement('style');
+      style.id = 'kscScopedReconciliationStyles';
+      style.textContent = `
+        .recon-auto-note{display:block;margin-top:4px;color:#47715a;font-size:8px;line-height:1.35;white-space:normal}
+        .recon-result.matched-auto{background:#eaf8ef;color:#126b39}
+        .recon-result.matched-auto span:after{content:" · Auto-accounted";font-size:7px;font-weight:700;letter-spacing:.02em}
+        @media(max-width:680px){.recon-auto-note{text-align:center}}
+      `;
+      document.head.appendChild(style);
+    }
   }
 
   function addSection() {
@@ -23,8 +36,8 @@
     section.dataset.section = 'dashboard';
     section.innerHTML = `
       <div class="analytics-heading">
-        <div><h3>Daily Performance Analytics</h3><p>Live statistics and reconciliation insights for the selected reporting date.</p></div>
-        <span class="analytics-period">Selected reporting date</span>
+        <div><h3>Daily Performance Analytics</h3><p>Live statistics and reconciliation insights for the selected reporting period.</p></div>
+        <span class="analytics-period">Selected reporting period</span>
       </div>
       <div class="analytics-stats">
         <article class="analytics-stat" id="statCoverageCard"><span class="analytics-stat-label">Submission Coverage</span><strong class="analytics-stat-value" id="statCoverage">0%</strong><small class="analytics-stat-note" id="statCoverageNote">0 of 0 active branches</small></article>
@@ -34,25 +47,67 @@
       </div>
       <div class="analytics-grid analytics-grid-two">
         <article class="analytics-card trend-card compact-reconciliation-card">
-          <div class="analytics-card-head"><div><h4>Branch Reconciliation</h4><p>Compact comparison of reported and verified amounts.</p></div><span class="analytics-tag">Compact View</span></div>
+          <div class="analytics-card-head"><div><h4>Branch Reconciliation</h4><p>Compact comparison of reported and reconciled amounts.</p></div><span class="analytics-tag">Compact View</span></div>
           <div class="recon-toolbar">
-            <div class="recon-legend"><span><i class="legend-swatch reported"></i>Reported</span><span><i class="legend-swatch received"></i>Received</span></div>
+            <div class="recon-legend"><span><i class="legend-swatch reported"></i>Reported</span><span><i class="legend-swatch received"></i>Reconciled</span></div>
             <small id="branchChartMeta">No submissions</small>
           </div>
           <div class="native-chart-frame compact-chart-frame">
-            <div class="recon-table-head" aria-hidden="true"><span>Branch</span><span>Reported</span><span>Received</span><span>Result</span></div>
+            <div class="recon-table-head" aria-hidden="true"><span>Branch</span><span>Reported</span><span>Reconciled</span><span>Result</span></div>
             <div id="branchBars" class="branch-bars compact-reconciliation"></div>
-            <div id="branchChartEmpty" class="chart-empty hidden">No branch submissions are available for this date.</div>
+            <div id="branchChartEmpty" class="chart-empty hidden">No branch submissions are available for this period.</div>
           </div>
         </article>
         <article class="analytics-card payment-card">
           <div class="analytics-card-head"><div><h4>Payment Channel Mix</h4><p>Share of the total by payment method.</p></div><span class="analytics-tag">Payment Mix</span></div>
           <div class="donut-layout"><div id="paymentMixChart" class="native-donut" role="img" aria-label="Payment channel mix"><div class="donut-center"><strong id="paymentMixTotal">₱0.00</strong><span>Total</span></div></div><div id="paymentMixLegend" class="donut-legend"></div></div>
-          <div id="paymentMixEmpty" class="chart-empty inline-empty hidden">No payment amounts have been reported for this date.</div>
+          <div id="paymentMixEmpty" class="chart-empty inline-empty hidden">No payment amounts have been reported for this period.</div>
         </article>
       </div>`;
 
     metrics.insertAdjacentElement('afterend', section);
+  }
+
+  function roundMoney(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return 0;
+    return Math.round((number + Number.EPSILON) * 100) / 100;
+  }
+
+  function verificationForAnalytics(report) {
+    const verification = typeof verificationFor === 'function' ? verificationFor(report) : null;
+    const reported = roundMoney(report?.reported_total || (typeof paymentTotal === 'function' ? paymentTotal(report) : 0));
+    if (!verification) {
+      return {
+        verification: null,
+        reported,
+        scopedActual: null,
+        expected: null,
+        carried: 0,
+        reconciled: null,
+        difference: null,
+        autoAccounted: false
+      };
+    }
+
+    const scopedActual = roundMoney(verification.actual_received || 0);
+    const expectedRaw = Number(verification.expected_amount);
+    const expected = Number.isFinite(expectedRaw) ? roundMoney(expectedRaw) : reported;
+    const autoAccounted = verification.auto_account_unassigned === true && expected < reported - 0.005;
+    const carried = autoAccounted ? Math.max(0, roundMoney(reported - expected)) : 0;
+    const reconciled = roundMoney(scopedActual + carried);
+    const difference = roundMoney(reconciled - reported);
+
+    return {
+      verification,
+      reported,
+      scopedActual,
+      expected,
+      carried,
+      reconciled,
+      difference,
+      autoAccounted
+    };
   }
 
   function toggleEmpty(id, show) {
@@ -60,21 +115,17 @@
   }
 
   function updateStatistics() {
+    const sourceReports = Array.isArray(reports) ? reports : [];
     const active = Array.isArray(branches) ? branches.length : 0;
-    const submitted = new Set(reports.map((report) => report.branch_id).filter(Boolean)).size;
+    const submitted = new Set(sourceReports.map((report) => report.branch_id).filter(Boolean)).size;
     const coverage = active ? Math.round((submitted / active) * 100) : 0;
-    const matched = reports.filter((report) => {
-      const verification = verificationFor(report);
-      return report.status === 'matched' || (verification && Math.abs(Number(verification.difference || 0)) < 0.005);
-    }).length;
-    const matchedRate = reports.length ? Math.round((matched / reports.length) * 100) : 0;
-    const reported = reports.reduce((sum, report) => sum + Number(report.reported_total || paymentTotal(report)), 0);
-    const customers = reports.reduce((sum, report) => sum + Number(report.customer_count || 0), 0);
-    const pending = reports.filter((report) => !verificationFor(report)).length;
-    const different = reports.filter((report) => {
-      const verification = verificationFor(report);
-      return verification && Math.abs(Number(verification.difference || 0)) >= 0.005;
-    }).length;
+    const reconciliation = sourceReports.map(verificationForAnalytics);
+    const matched = reconciliation.filter((item) => item.verification && Math.abs(item.difference) < 0.005).length;
+    const matchedRate = sourceReports.length ? Math.round((matched / sourceReports.length) * 100) : 0;
+    const reported = reconciliation.reduce((sum, item) => sum + item.reported, 0);
+    const customers = sourceReports.reduce((sum, report) => sum + Number(report.customer_count || 0), 0);
+    const pending = reconciliation.filter((item) => !item.verification).length;
+    const different = reconciliation.filter((item) => item.verification && Math.abs(item.difference) >= 0.005).length;
     const attention = pending + different;
 
     byId('statCoverage').textContent = `${coverage}%`;
@@ -87,7 +138,7 @@
     byId('statCoverageCard')?.classList.toggle('success', coverage === 100 && active > 0);
     byId('statMatchedCard')?.classList.toggle('success', matched > 0 && different === 0);
     byId('statAttentionCard')?.classList.toggle('alert', attention > 0);
-    byId('statAttentionCard')?.classList.toggle('success', attention === 0 && reports.length > 0);
+    byId('statAttentionCard')?.classList.toggle('success', attention === 0 && sourceReports.length > 0);
   }
 
   function renderBranchChart() {
@@ -95,18 +146,18 @@
     const meta = byId('branchChartMeta');
     if (!container) return;
 
-    const rows = reports
+    const sourceReports = Array.isArray(reports) ? reports : [];
+    const rows = sourceReports
       .map((report) => {
-        const verification = verificationFor(report);
-        const reported = Number(report.reported_total || paymentTotal(report));
-        const actual = verification ? Number(verification.actual_received || 0) : null;
-        const difference = actual === null ? null : actual - reported;
-        const status = actual === null ? 'pending' : Math.abs(difference) < 0.005 ? 'matched' : 'different';
+        const item = verificationForAnalytics(report);
+        const status = item.reconciled === null
+          ? 'pending'
+          : Math.abs(item.difference) < 0.005
+            ? 'matched'
+            : 'different';
         return {
           name: report.branches?.name || report.branches?.code || 'Unknown',
-          reported,
-          actual,
-          difference,
+          ...item,
           status
         };
       })
@@ -124,18 +175,28 @@
     const matchedCount = rows.filter((row) => row.status === 'matched').length;
     if (meta) meta.textContent = `${rows.length} branches · ${matchedCount} matched · ${pendingCount} pending · ${differentCount} difference`;
 
-    const maximum = Math.max(1, ...rows.flatMap((row) => [row.reported, row.actual || 0]));
+    const maximum = Math.max(1, ...rows.flatMap((row) => [row.reported, row.reconciled || 0]));
     container.innerHTML = rows.map((row) => {
       const reportedWidth = Math.max(1.5, (row.reported / maximum) * 100);
-      const actualWidth = row.actual === null ? 0 : Math.max(1.5, (row.actual / maximum) * 100);
+      const reconciledWidth = row.reconciled === null ? 0 : Math.max(1.5, (row.reconciled / maximum) * 100);
       const resultLabel = row.status === 'pending' ? 'Pending' : row.status === 'matched' ? 'Matched' : 'Difference';
       const resultValue = row.status === 'pending' ? 'Awaiting verification' : row.status === 'matched' ? formatMoney(0) : formatMoney(row.difference);
+      const branchNote = row.status === 'pending'
+        ? 'Not yet verified'
+        : row.autoAccounted
+          ? 'Scoped verification complete'
+          : 'Verification complete';
+      const autoNote = row.autoAccounted
+        ? `<small class="recon-auto-note">${escapeHtml(formatMoney(row.scopedActual))} verified + ${escapeHtml(formatMoney(row.carried))} auto-accounted</small>`
+        : '';
+      const resultClass = row.status === 'matched' && row.autoAccounted ? 'matched matched-auto' : row.status;
+
       return `
         <div class="recon-row">
-          <div class="recon-branch"><strong>${escapeHtml(row.name)}</strong><small>${row.status === 'pending' ? 'Not yet verified' : 'Verification complete'}</small></div>
+          <div class="recon-branch"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(branchNote)}</small></div>
           <div class="recon-amount reported-amount"><strong>${escapeHtml(formatMoney(row.reported))}</strong><span class="mini-track"><i class="mini-fill reported" style="width:${reportedWidth}%"></i></span></div>
-          <div class="recon-amount received-amount ${row.actual === null ? 'is-pending' : ''}"><strong>${row.actual === null ? '—' : escapeHtml(formatMoney(row.actual))}</strong><span class="mini-track"><i class="mini-fill received" style="width:${actualWidth}%"></i></span></div>
-          <div class="recon-result ${row.status}"><span>${escapeHtml(resultLabel)}</span><strong>${escapeHtml(resultValue)}</strong></div>
+          <div class="recon-amount received-amount ${row.reconciled === null ? 'is-pending' : ''}"><strong>${row.reconciled === null ? '—' : escapeHtml(formatMoney(row.reconciled))}</strong>${autoNote}<span class="mini-track"><i class="mini-fill received" style="width:${reconciledWidth}%"></i></span></div>
+          <div class="recon-result ${resultClass}"><span>${escapeHtml(resultLabel)}</span><strong>${escapeHtml(resultValue)}</strong></div>
         </div>`;
     }).join('');
   }
@@ -167,10 +228,11 @@
   }
 
   function renderPaymentChart() {
+    const sourceReports = Array.isArray(reports) ? reports : [];
     const rows = PAYMENT_TYPES
       .map(({ label, key }, index) => ({
         label,
-        value: reports.reduce((sum, report) => sum + Number(report[key] || 0), 0),
+        value: sourceReports.reduce((sum, report) => sum + Number(report[key] || 0), 0),
         color: PAYMENT_COLORS[index % PAYMENT_COLORS.length]
       }))
       .filter((row) => row.value > 0);
@@ -199,5 +261,7 @@
     };
   }
 
+  document.addEventListener('ksc:reconciliation-metadata-ready', renderAnalytics);
+  document.addEventListener('ksc:reporting-period-loaded', () => window.setTimeout(renderAnalytics, 0));
   window.setTimeout(renderAnalytics, 0);
 })();
