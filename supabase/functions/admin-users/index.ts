@@ -9,7 +9,11 @@ const corsHeaders = {
 const allowedRoles = new Set(['store_user', 'checker', 'executive', 'admin'])
 const paymentTypes = ['cash', 'gcash', 'maya', 'credit', 'debit', 'cheque', 'salmon', 'other'] as const
 const allowedPaymentTypes = new Set<string>(paymentTypes)
-const fullCheckerScope = Object.freeze({ all: true, payment_types: [...paymentTypes] })
+const fullCheckerScope = Object.freeze({
+  all: true,
+  payment_types: [...paymentTypes],
+  auto_account_unassigned: false,
+})
 const allowedPermissions = new Set([
   'dashboard_view',
   'entry_view',
@@ -58,15 +62,21 @@ function sanitizePermissions(value: unknown): Record<string, boolean> {
   return result
 }
 
-function sanitizeCheckerScope(value: unknown, role: string) {
-  if (role !== 'checker') return { ...fullCheckerScope, payment_types: [...fullCheckerScope.payment_types] }
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return { ...fullCheckerScope, payment_types: [...fullCheckerScope.payment_types] }
+function cloneFullCheckerScope() {
+  return {
+    all: true,
+    payment_types: [...paymentTypes],
+    auto_account_unassigned: false,
   }
+}
+
+function sanitizeCheckerScope(value: unknown, role: string) {
+  if (role !== 'checker') return cloneFullCheckerScope()
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return cloneFullCheckerScope()
 
   const raw = value as Record<string, unknown>
   const all = raw.all !== false
-  if (all) return { ...fullCheckerScope, payment_types: [...fullCheckerScope.payment_types] }
+  if (all) return cloneFullCheckerScope()
 
   const requested = Array.isArray(raw.payment_types)
     ? raw.payment_types.filter((item): item is string => typeof item === 'string' && allowedPaymentTypes.has(item))
@@ -74,7 +84,11 @@ function sanitizeCheckerScope(value: unknown, role: string) {
   const selected = paymentTypes.filter((type) => requested.includes(type))
 
   if (!selected.length) throw new Error('Select at least one payment type for the Deposit Checker.')
-  return { all: false, payment_types: selected }
+  return {
+    all: false,
+    payment_types: selected,
+    auto_account_unassigned: raw.auto_account_unassigned === true,
+  }
 }
 
 function hasManageUsers(profile: { role?: string; permissions?: Record<string, boolean> | null }) {
@@ -147,7 +161,7 @@ Deno.serve(async (req) => {
           branch_id: userProfile?.branch_id ?? null,
           active: Boolean(userProfile?.active),
           permissions: userProfile?.permissions ?? {},
-          checker_scope: userProfile?.checker_scope ?? fullCheckerScope,
+          checker_scope: userProfile?.checker_scope ?? cloneFullCheckerScope(),
           created_at: authUser.created_at,
           updated_at: userProfile?.updated_at ?? authUser.updated_at,
           last_sign_in_at: authUser.last_sign_in_at ?? null,
