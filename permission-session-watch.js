@@ -27,6 +27,24 @@
   document.body.appendChild(script);
 })();
 
+(function loadScopedAutoAccountReconciliation() {
+  if (!document.querySelector('script[data-ksc-checker-auto-account]')) {
+    const feature = document.createElement('script');
+    feature.src = './checker-auto-account.js?v=20260803-1638';
+    feature.dataset.kscCheckerAutoAccount = 'true';
+    feature.async = false;
+    document.body.appendChild(feature);
+  }
+
+  if (!document.querySelector('script[data-ksc-dashboard-analytics]')) {
+    const analytics = document.createElement('script');
+    analytics.src = './dashboard-analytics.js?v=20260803-1638';
+    analytics.dataset.kscDashboardAnalytics = 'true';
+    analytics.async = false;
+    document.body.appendChild(analytics);
+  }
+})();
+
 (function loadDynamicModuleGuards() {
   const guards = [
     {
