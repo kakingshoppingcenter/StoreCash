@@ -161,7 +161,7 @@
   }
 
   async function rangeLoad(options = {}) {
-    const silent = Boolean(options.silent);
+    const silent = options.silent !== false;
     const force = Boolean(options.force);
     const period = effectivePeriod();
     if (!periodOkay(period, !silent) || !db || !session?.user?.id) return false;
@@ -239,24 +239,24 @@
     const target = event.target;
     if (!(target instanceof Element)) return;
     if (event.type === 'click' && target.closest('#refreshBtn')) {
-      event.preventDefault(); event.stopImmediatePropagation(); state.lastKey = ''; rangeLoad({ force: true });
+      event.preventDefault(); event.stopImmediatePropagation(); state.lastKey = ''; rangeLoad({ silent: false, force: true });
     } else if (event.type === 'change' && target.id === 'filterDate') {
-      event.stopImmediatePropagation(); syncControls(); if (el('reportMode').value !== 'range') { state.lastKey = ''; rangeLoad({ force: true }); }
+      event.stopImmediatePropagation(); syncControls(); if (el('reportMode').value !== 'range') { state.lastKey = ''; rangeLoad({ silent: false, force: true }); }
     } else if (event.type === 'change' && target.id === 'businessDate') {
-      event.stopImmediatePropagation(); state.lastKey = ''; rangeLoad({ force: true });
+      event.stopImmediatePropagation(); state.lastKey = ''; rangeLoad({ silent: false, force: true });
     }
   }
   function bind() {
     document.addEventListener('click', intercept, true);
     document.addEventListener('change', intercept, true);
-    el('reportMode').addEventListener('change', () => { syncControls(); if (el('reportMode').value !== 'range') { state.lastKey = ''; rangeLoad({ force: true }); } });
+    el('reportMode').addEventListener('change', () => { syncControls(); if (el('reportMode').value !== 'range') { state.lastKey = ''; rangeLoad({ silent: false, force: true }); } });
     el('filterFrom').addEventListener('change', () => syncControls());
     el('filterTo').addEventListener('change', () => syncControls());
-    el('applyReportingPeriod').addEventListener('click', () => { syncControls(); state.lastKey = ''; rangeLoad({ force: true }); });
+    el('applyReportingPeriod').addEventListener('click', () => { syncControls(); state.lastKey = ''; rangeLoad({ silent: false, force: true }); });
     el('resetReportingPeriod').addEventListener('click', () => {
       const value = ymd(new Date());
       el('reportMode').value = 'day'; el('filterDate').value = value; el('filterFrom').value = value; el('filterTo').value = value;
-      syncControls(); state.lastKey = ''; rangeLoad({ force: true });
+      syncControls(); state.lastKey = ''; rangeLoad({ silent: false, force: true });
     });
     document.addEventListener('click', (event) => {
       if (!event.target.closest?.('.nav-item[data-view]')) return;
