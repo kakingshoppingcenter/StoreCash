@@ -1,13 +1,28 @@
 'use strict';
 
 (function enforceReportingRangeModeVisibility() {
-  if (window.__KSC_REPORTING_RANGE_MODE_GUARD_V1__) return;
-  window.__KSC_REPORTING_RANGE_MODE_GUARD_V1__ = true;
+  if (window.__KSC_REPORTING_RANGE_MODE_GUARD_V2__) return;
+  window.__KSC_REPORTING_RANGE_MODE_GUARD_V2__ = true;
 
   let framePending = false;
 
+  function installStyles() {
+    if (document.getElementById('kscReportingRangeModeGuardStyles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'kscReportingRangeModeGuardStyles';
+    style.textContent = `
+      html body .toolbar.reporting-range-toolbar label.reporting-range-hidden,
+      html body .toolbar.reporting-range-toolbar label[hidden]{
+        display:none!important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   function synchronize() {
     framePending = false;
+    installStyles();
 
     const toolbar = document.querySelector('.toolbar.reporting-range-toolbar');
     const modeControl = document.getElementById('reportMode');
@@ -72,6 +87,7 @@
   });
 
   function initialize() {
+    installStyles();
     observer.observe(document.body, {
       subtree: true,
       childList: true,
