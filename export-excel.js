@@ -1,78 +1,282 @@
 'use strict';
 
-(function installFormattedExcelExport() {
-  const COLUMN_COUNT = 18;
-  const COLUMN_WIDTHS = [120, 85, 82, 82, 82, 82, 82, 82, 82, 82, 105, 110, 95, 100, 80, 120, 190, 190];
+(function installNativeXlsxExport() {
+  if (window.__KSC_NATIVE_XLSX_EXPORT_V1__) return;
+  window.__KSC_NATIVE_XLSX_EXPORT_V1__ = true;
 
-  function xmlEscape(value) {
-    return String(value ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&apos;');
-  }
+  const EXCELJS_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+  const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const MONEY_FORMAT = '₱#,##0.00;[Red]-₱#,##0.00';
+  const INTEGER_FORMAT = '#,##0';
+  const COLUMN_KEYS = [
+    'branch', 'date', 'cash', 'gcash', 'maya', 'credit', 'debit', 'cheque', 'salmon', 'other',
+    'reported', 'actual', 'reading', 'difference', 'customers', 'status', 'storeRemarks', 'verificationRemarks'
+  ];
+
+  let excelJsPromise = null;
+  let exporting = false;
 
   function finiteNumber(value) {
     const number = Number(value);
     return Number.isFinite(number) ? number : 0;
   }
 
-  function textCell(value, style = 'CenteredText') {
-    return `<Cell ss:StyleID="${style}"><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`;
+  function sourceReports() {
+    try {
+      if (Array.isArray(reports)) return reports;
+    } catch (_) {
+      // Continue to the window fallback.
+    }
+    return Array.isArray(window.reports) ? window.reports : [];
   }
 
-  function numberCell(value, style = 'Money') {
-    return `<Cell ss:StyleID="${style}"><Data ss:Type="Number">${finiteNumber(value)}</Data></Cell>`;
+  function reportVerification(report) {
+    try {
+      if (typeof verificationFor === 'function') return verificationFor(report);
+    } catch (_) {
+      // Fall through to the embedded relationship.
+    }
+    const value = report?.deposit_verifications;
+    return Array.isArray(value) ? value[0] || null : value || null;
   }
 
-  function dateCell(value) {
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) ? `${value}T00:00:00.000` : '';
-    return date
-      ? `<Cell ss:StyleID="Date"><Data ss:Type="DateTime">${date}</Data></Cell>`
-      : textCell('—');
+  function reportStatus(status) {
+    try {
+      if (typeof statusLabel === 'function') return statusLabel(status);
+    } catch (_) {
+      // Use the stored value below.
+    }
+    return String(status || '');
   }
 
-  function downloadBlob(content, filename) {
-    const blob = new Blob([content], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+  function dateValue(value) {
+    const text = String(value || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return text || '—';
+    const [year, month, day] = text.split('-').map(Number);
+    return new Date(year, month - 1, day, 12, 0, 0);
   }
 
-  function buildWorkbook() {
-    const businessDate = document.getElementById('filterDate')?.value || new Date().toISOString().slice(0, 10);
-    const sourceReports = Array.isArray(window.reports) ? window.reports : (typeof reports !== 'undefined' ? reports : []);
-    const sortedReports = [...sourceReports].sort((left, right) => {
-      const leftName = left.branches?.name || left.branches?.code || '';
-      const rightName = right.branches?.name || right.branches?.code || '';
-      return leftName.localeCompare(rightName, 'en', { sensitivity: 'base' });
+  function currentPeriod() {
+    const mode = document.getElementById('reportMode')?.value || 'day';
+    const anchor = document.getElementById('filterDate')?.value || new Date().toISOString().slice(0, 10);
+    const from = document.getElementById('filterFrom')?.value || anchor;
+    const to = document.getElementById('filterTo')?.value || anchor;
+
+    if (mode === 'range') return { mode, from, to };
+    if (mode === 'week') return { mode, from, to };
+    return { mode: 'day', from: anchor, to: anchor };
+  }
+
+  function periodLabel(period) {
+    if (period.from === period.to) return period.from;
+    return `${period.from} to ${period.to}`;
+  }
+
+  function filename(period) {
+    const suffix = period.from === period.to ? period.from : `${period.from}_to_${period.to}`;
+    return `KakingStoreCash-${period.mode}-${suffix}.xlsx`;
+  }
+
+  function loadExcelJs() {
+    if (window.ExcelJS?.Workbook) return Promise.resolve(window.ExcelJS);
+    if (excelJsPromise) return excelJsPromise;
+
+    excelJsPromise = new Promise((resolve, reject) => {
+      let script = document.querySelector('script[data-ksc-exceljs]');
+
+      const finish = () => {
+        if (window.ExcelJS?.Workbook) resolve(window.ExcelJS);
+        else reject(new Error('Excel workbook library did not initialize.'));
+      };
+
+      if (script) {
+        script.addEventListener('load', finish, { once: true });
+        script.addEventListener('error', () => reject(new Error('Unable to load the Excel workbook library.')), { once: true });
+        window.setTimeout(finish, 0);
+        return;
+      }
+
+      script = document.createElement('script');
+      script.src = EXCELJS_URL;
+      script.dataset.kscExceljs = 'true';
+      script.async = true;
+      script.addEventListener('load', finish, { once: true });
+      script.addEventListener('error', () => reject(new Error('Unable to load the Excel workbook library.')), { once: true });
+      document.head.appendChild(script);
+    }).catch((error) => {
+      excelJsPromise = null;
+      throw error;
     });
 
-    if (!sortedReports.length) {
-      if (typeof showToast === 'function') showToast('There are no reports to export.', 'error');
-      return null;
+    return excelJsPromise;
+  }
+
+  function applyThinBorder(cell) {
+    const side = { style: 'thin', color: { argb: 'FFE3EAF2' } };
+    cell.border = { top: side, left: side, bottom: side, right: side };
+  }
+
+  function styleTitleRows(worksheet, period, reportCount) {
+    worksheet.mergeCells('A1:R1');
+    const title = worksheet.getCell('A1');
+    title.value = 'KAKING STORE CASH — STORE CASH AND DEPOSIT REPORT';
+    title.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFF1BF36' } };
+    title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B1F3A' } };
+    title.alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(1).height = 30;
+
+    worksheet.mergeCells('A2:R2');
+    const subtitle = worksheet.getCell('A2');
+    subtitle.value = `Reporting Period: ${periodLabel(period)} | ${reportCount} report${reportCount === 1 ? '' : 's'} | Generated: ${new Date().toLocaleString('en-PH')}`;
+    subtitle.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF405269' } };
+    subtitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF4FB' } };
+    subtitle.alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getRow(2).height = 22;
+  }
+
+  function styleHeaderRow(row) {
+    row.height = 34;
+    row.eachCell((cell) => {
+      cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1268E8' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      applyThinBorder(cell);
+    });
+  }
+
+  function styleDataRow(row, alternate) {
+    row.height = 22;
+    row.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
+      cell.font = { name: 'Arial', size: 10, color: { argb: 'FF172033' } };
+      cell.alignment = {
+        horizontal: 'center',
+        vertical: 'middle',
+        wrapText: columnNumber >= 17
+      };
+      if (alternate) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7FAFD' } };
+      }
+      applyThinBorder(cell);
+    });
+
+    for (let column = 3; column <= 14; column += 1) {
+      const cell = row.getCell(column);
+      if (typeof cell.value === 'number') cell.numFmt = MONEY_FORMAT;
+    }
+    row.getCell(15).numFmt = INTEGER_FORMAT;
+    if (row.getCell(2).value instanceof Date) row.getCell(2).numFmt = 'mmm d, yyyy';
+  }
+
+  function styleStatusCell(cell, status) {
+    const normalized = String(status || '').toLowerCase();
+    let fill = 'FFEEF2F6';
+    let color = 'FF5D6B7E';
+
+    if (normalized.includes('matched')) {
+      fill = 'FFDCF7E5';
+      color = 'FF14733A';
+    } else if (normalized.includes('difference')) {
+      fill = 'FFFFE2E2';
+      color = 'FFB42318';
+    } else if (normalized.includes('pending')) {
+      fill = 'FFFFF4DA';
+      color = 'FF926400';
     }
 
-    const headers = [
-      'Branch', 'Date', 'CASH', 'G-CASH', 'MAYA', 'CREDIT', 'DEBIT', 'CHEQUE', 'SALMON', 'OTHER',
-      'Reported Total', 'Actual Received', 'Reading', 'Difference', 'Customers', 'Status',
-      'Store Remarks', 'Verification Remarks'
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: color } };
+  }
+
+  function addTotalsRow(worksheet, totals, rowNumber, reportCount) {
+    worksheet.mergeCells(`A${rowNumber}:B${rowNumber}`);
+    worksheet.getCell(`A${rowNumber}`).value = 'GRAND TOTAL';
+
+    const values = [
+      totals.cash, totals.gcash, totals.maya, totals.credit, totals.debit, totals.cheque,
+      totals.salmon, totals.other, totals.reported, totals.actual, totals.reading,
+      totals.difference, totals.customers
     ];
+
+    values.forEach((value, index) => {
+      worksheet.getCell(rowNumber, index + 3).value = value;
+    });
+
+    worksheet.mergeCells(`P${rowNumber}:R${rowNumber}`);
+    worksheet.getCell(`P${rowNumber}`).value = `${reportCount} branch report${reportCount === 1 ? '' : 's'}`;
+
+    const row = worksheet.getRow(rowNumber);
+    row.height = 25;
+    row.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
+      cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B1F3A' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      applyThinBorder(cell);
+      if (columnNumber >= 3 && columnNumber <= 14) cell.numFmt = MONEY_FORMAT;
+      if (columnNumber === 15) cell.numFmt = INTEGER_FORMAT;
+    });
+  }
+
+  async function buildWorkbook(ExcelJS, sortedReports, period) {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Kaking Store Cash';
+    workbook.lastModifiedBy = 'Kaking Store Cash';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+    workbook.subject = 'Store cash and deposit reconciliation report';
+    workbook.title = `Kaking Store Cash ${periodLabel(period)}`;
+    workbook.company = 'Kaking Store Cash';
+
+    const worksheet = workbook.addWorksheet('Store Reports', {
+      properties: { defaultRowHeight: 20 },
+      pageSetup: {
+        orientation: 'landscape',
+        paperSize: 9,
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+      }
+    });
+
+    worksheet.columns = [
+      { header: 'Branch', key: 'branch', width: 24 },
+      { header: 'Date', key: 'date', width: 14 },
+      { header: 'CASH', key: 'cash', width: 13 },
+      { header: 'G-CASH', key: 'gcash', width: 13 },
+      { header: 'MAYA', key: 'maya', width: 13 },
+      { header: 'CREDIT', key: 'credit', width: 13 },
+      { header: 'DEBIT', key: 'debit', width: 13 },
+      { header: 'CHEQUE', key: 'cheque', width: 13 },
+      { header: 'SALMON', key: 'salmon', width: 13 },
+      { header: 'OTHER', key: 'other', width: 13 },
+      { header: 'Reported Total', key: 'reported', width: 16 },
+      { header: 'Actual Received', key: 'actual', width: 16 },
+      { header: 'Reading', key: 'reading', width: 14 },
+      { header: 'Difference', key: 'difference', width: 15 },
+      { header: 'Customers', key: 'customers', width: 12 },
+      { header: 'Status', key: 'status', width: 20 },
+      { header: 'Store Remarks', key: 'storeRemarks', width: 30 },
+      { header: 'Verification Remarks', key: 'verificationRemarks', width: 30 }
+    ];
+
+    worksheet.spliceRows(1, 0, [], []);
+    const headerRow = worksheet.getRow(3);
+    COLUMN_KEYS.forEach((key, index) => {
+      headerRow.getCell(index + 1).value = worksheet.getColumn(key).header;
+    });
+    styleTitleRows(worksheet, period, sortedReports.length);
+    styleHeaderRow(headerRow);
 
     const totals = {
       cash: 0, gcash: 0, maya: 0, credit: 0, debit: 0, cheque: 0, salmon: 0, other: 0,
       reported: 0, actual: 0, reading: 0, difference: 0, customers: 0
     };
 
-    const dataRows = sortedReports.map((report, index) => {
-      const verification = typeof verificationFor === 'function' ? verificationFor(report) : null;
+    sortedReports.forEach((report, index) => {
+      const verification = reportVerification(report);
       const values = {
+        branch: report.branches?.name || report.branches?.code || 'Unknown',
+        date: dateValue(report.business_date),
         cash: finiteNumber(report.cash),
         gcash: finiteNumber(report.gcash),
         maya: finiteNumber(report.maya),
@@ -82,127 +286,111 @@
         salmon: finiteNumber(report.salmon),
         other: finiteNumber(report.other),
         reported: finiteNumber(report.reported_total),
-        actual: verification ? finiteNumber(verification.actual_received) : 0,
-        reading: verification ? finiteNumber(verification.reading) : 0,
-        difference: verification ? finiteNumber(verification.difference) : 0,
-        customers: finiteNumber(report.customer_count)
+        actual: verification ? finiteNumber(verification.actual_received) : 'Pending',
+        reading: verification ? finiteNumber(verification.reading) : '',
+        difference: verification ? finiteNumber(verification.difference) : '',
+        customers: finiteNumber(report.customer_count),
+        status: reportStatus(report.status),
+        storeRemarks: report.store_remarks || '',
+        verificationRemarks: verification?.remarks || ''
       };
 
-      Object.keys(totals).forEach((key) => { totals[key] += values[key]; });
-      const rowStyle = index % 2 === 0 ? 'CenteredText' : 'CenteredAlternate';
-      const moneyStyle = index % 2 === 0 ? 'Money' : 'MoneyAlternate';
-      const integerStyle = index % 2 === 0 ? 'Integer' : 'IntegerAlternate';
-      const notesStyle = index % 2 === 0 ? 'CenteredWrap' : 'CenteredWrapAlternate';
-      const status = typeof statusLabel === 'function' ? statusLabel(report.status) : String(report.status || '');
+      ['cash', 'gcash', 'maya', 'credit', 'debit', 'cheque', 'salmon', 'other', 'reported', 'customers']
+        .forEach((key) => { totals[key] += finiteNumber(values[key]); });
+      if (verification) {
+        totals.actual += finiteNumber(values.actual);
+        totals.reading += finiteNumber(values.reading);
+        totals.difference += finiteNumber(values.difference);
+      }
 
-      return `<Row ss:AutoFitHeight="1">
-        ${textCell(report.branches?.name || report.branches?.code || 'Unknown', rowStyle)}
-        ${dateCell(report.business_date)}
-        ${numberCell(values.cash, moneyStyle)}
-        ${numberCell(values.gcash, moneyStyle)}
-        ${numberCell(values.maya, moneyStyle)}
-        ${numberCell(values.credit, moneyStyle)}
-        ${numberCell(values.debit, moneyStyle)}
-        ${numberCell(values.cheque, moneyStyle)}
-        ${numberCell(values.salmon, moneyStyle)}
-        ${numberCell(values.other, moneyStyle)}
-        ${numberCell(values.reported, moneyStyle)}
-        ${verification ? numberCell(values.actual, moneyStyle) : textCell('Pending', rowStyle)}
-        ${verification ? numberCell(values.reading, moneyStyle) : textCell('—', rowStyle)}
-        ${verification ? numberCell(values.difference, moneyStyle) : textCell('—', rowStyle)}
-        ${numberCell(values.customers, integerStyle)}
-        ${textCell(status, rowStyle)}
-        ${textCell(report.store_remarks || '', notesStyle)}
-        ${textCell(verification?.remarks || '', notesStyle)}
-      </Row>`;
-    }).join('');
+      const row = worksheet.addRow(values);
+      styleDataRow(row, index % 2 === 1);
+      styleStatusCell(row.getCell(16), values.status);
+    });
 
-    const totalRow = `<Row ss:Height="24">
-      <Cell ss:StyleID="TotalLabel" ss:MergeAcross="1"><Data ss:Type="String">GRAND TOTAL</Data></Cell>
-      ${numberCell(totals.cash, 'TotalMoney')}
-      ${numberCell(totals.gcash, 'TotalMoney')}
-      ${numberCell(totals.maya, 'TotalMoney')}
-      ${numberCell(totals.credit, 'TotalMoney')}
-      ${numberCell(totals.debit, 'TotalMoney')}
-      ${numberCell(totals.cheque, 'TotalMoney')}
-      ${numberCell(totals.salmon, 'TotalMoney')}
-      ${numberCell(totals.other, 'TotalMoney')}
-      ${numberCell(totals.reported, 'TotalMoney')}
-      ${numberCell(totals.actual, 'TotalMoney')}
-      ${numberCell(totals.reading, 'TotalMoney')}
-      ${numberCell(totals.difference, 'TotalMoney')}
-      ${numberCell(totals.customers, 'TotalInteger')}
-      <Cell ss:StyleID="TotalText" ss:MergeAcross="2"><Data ss:Type="String">${sortedReports.length} branch report${sortedReports.length === 1 ? '' : 's'}</Data></Cell>
-    </Row>`;
+    const totalRowNumber = worksheet.lastRow.number + 1;
+    addTotalsRow(worksheet, totals, totalRowNumber, sortedReports.length);
 
-    const columns = COLUMN_WIDTHS.map((width) => `<Column ss:AutoFitWidth="0" ss:Width="${width}"/>`).join('');
-    const headerRow = `<Row ss:Height="34">${headers.map((header) => textCell(header, 'Header')).join('')}</Row>`;
-    const totalRows = sortedReports.length + 4;
+    worksheet.views = [{ state: 'frozen', ySplit: 3, activeCell: 'A4' }];
+    worksheet.autoFilter = { from: 'A3', to: `R${Math.max(3, totalRowNumber - 1)}` };
+    worksheet.pageSetup.printTitlesRow = '1:3';
+    worksheet.headerFooter.oddFooter = '&LKaking Store Cash&CPage &P of &N&RGenerated &D &T';
 
-    return `<?xml version="1.0"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
-  <Author>Kaking Store Cash</Author>
-  <Title>Daily Store Cash and Deposit Report</Title>
-  <Created>${new Date().toISOString()}</Created>
- </DocumentProperties>
- <ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel"><WindowHeight>12345</WindowHeight><WindowWidth>24000</WindowWidth><ProtectStructure>False</ProtectStructure><ProtectWindows>False</ProtectWindows></ExcelWorkbook>
- <Styles>
-  <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders/><Font ss:FontName="Arial" ss:Size="10"/><Interior/><NumberFormat/><Protection/></Style>
-  <Style ss:ID="Title"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Arial" ss:Size="16" ss:Bold="1" ss:Color="#F1BF36"/><Interior ss:Color="#0B1F3A" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="Subtitle"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Arial" ss:Size="10" ss:Bold="1" ss:Color="#405269"/><Interior ss:Color="#EEF4FB" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="Header"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D8E2EE"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D8E2EE"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D8E2EE"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D8E2EE"/></Borders><Font ss:FontName="Arial" ss:Size="9" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1268E8" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="CenteredText"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E7EDF4"/></Borders></Style>
-  <Style ss:ID="CenteredAlternate"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E7EDF4"/></Borders><Interior ss:Color="#F7FAFD" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="CenteredWrap"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E7EDF4"/></Borders></Style>
-  <Style ss:ID="CenteredWrapAlternate"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E7EDF4"/></Borders><Interior ss:Color="#F7FAFD" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="Money"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E7EDF4"/></Borders><NumberFormat ss:Format="₱#,##0.00;[Red]-₱#,##0.00"/></Style>
-  <Style ss:ID="MoneyAlternate"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E7EDF4"/></Borders><Interior ss:Color="#F7FAFD" ss:Pattern="Solid"/><NumberFormat ss:Format="₱#,##0.00;[Red]-₱#,##0.00"/></Style>
-  <Style ss:ID="Integer"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E7EDF4"/></Borders><NumberFormat ss:Format="#,##0"/></Style>
-  <Style ss:ID="IntegerAlternate"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E7EDF4"/></Borders><Interior ss:Color="#F7FAFD" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
-  <Style ss:ID="Date"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E7EDF4"/></Borders><NumberFormat ss:Format="mmm d, yyyy"/></Style>
-  <Style ss:ID="TotalLabel"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0B1F3A" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="TotalMoney"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0B1F3A" ss:Pattern="Solid"/><NumberFormat ss:Format="₱#,##0.00;[Red]-₱#,##0.00"/></Style>
-  <Style ss:ID="TotalInteger"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0B1F3A" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0"/></Style>
-  <Style ss:ID="TotalText"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#0B1F3A" ss:Pattern="Solid"/></Style>
- </Styles>
- <Worksheet ss:Name="Daily Reports">
-  <Table ss:ExpandedColumnCount="${COLUMN_COUNT}" ss:ExpandedRowCount="${totalRows}" x:FullColumns="1" x:FullRows="1">
-   ${columns}
-   <Row ss:Height="30"><Cell ss:StyleID="Title" ss:MergeAcross="17"><Data ss:Type="String">KAKING STORE CASH — DAILY REPORT</Data></Cell></Row>
-   <Row ss:Height="22"><Cell ss:StyleID="Subtitle" ss:MergeAcross="17"><Data ss:Type="String">Business Date: ${xmlEscape(businessDate)} | Generated: ${xmlEscape(new Date().toLocaleString('en-PH'))}</Data></Cell></Row>
-   ${headerRow}
-   ${dataRows}
-   ${totalRow}
-  </Table>
-  <AutoFilter x:Range="R3C1:R${sortedReports.length + 3}C18" xmlns="urn:schemas-microsoft-com:office:excel"/>
-  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><Selected/><FreezePanes/><FrozenNoSplit/><SplitHorizontal>3</SplitHorizontal><TopRowBottomPane>3</TopRowBottomPane><ActivePane>2</ActivePane><ProtectObjects>False</ProtectObjects><ProtectScenarios>False</ProtectScenarios></WorksheetOptions>
- </Worksheet>
-</Workbook>`;
+    return workbook;
   }
 
-  function exportFormattedExcel(event) {
+  function downloadBuffer(buffer, name) {
+    const blob = new Blob([buffer], { type: XLSX_MIME });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  async function exportNativeXlsx(event) {
     event.preventDefault();
     event.stopImmediatePropagation();
-    const workbook = buildWorkbook();
-    if (!workbook) return;
-    const businessDate = document.getElementById('filterDate')?.value || new Date().toISOString().slice(0, 10);
-    downloadBlob(`\uFEFF${workbook}`, `KakingStoreCash-${businessDate}.xls`);
-    if (typeof showToast === 'function') showToast('Formatted Excel report exported successfully.', 'success');
+    if (exporting) return;
+
+    const button = document.getElementById('exportBtn');
+    const originalText = button?.textContent || 'Export Excel';
+    const sortedReports = [...sourceReports()].sort((left, right) => {
+      const dateCompare = String(right.business_date || '').localeCompare(String(left.business_date || ''));
+      if (dateCompare !== 0) return dateCompare;
+      const leftName = left.branches?.name || left.branches?.code || '';
+      const rightName = right.branches?.name || right.branches?.code || '';
+      return leftName.localeCompare(rightName, 'en', { sensitivity: 'base' });
+    });
+
+    if (!sortedReports.length) {
+      if (typeof showToast === 'function') showToast('There are no reports to export.', 'error');
+      return;
+    }
+
+    exporting = true;
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Preparing Excel…';
+    }
+
+    try {
+      const ExcelJS = await loadExcelJs();
+      const period = currentPeriod();
+      const workbook = await buildWorkbook(ExcelJS, sortedReports, period);
+      const buffer = await workbook.xlsx.writeBuffer({ useStyles: true, useSharedStrings: true });
+      downloadBuffer(buffer, filename(period));
+      if (typeof showToast === 'function') showToast('Excel workbook exported successfully.', 'success');
+    } catch (error) {
+      console.error('Excel export failed:', error);
+      if (typeof showToast === 'function') showToast(error.message || 'Unable to create the Excel workbook.', 'error');
+    } finally {
+      exporting = false;
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
   }
 
   function initializeExport() {
     const button = document.getElementById('exportBtn');
-    if (!button || button.dataset.formattedExcelReady === 'true') return;
-    button.dataset.formattedExcelReady = 'true';
+    if (!button || button.dataset.nativeXlsxReady === 'true') return;
+
+    button.dataset.nativeXlsxReady = 'true';
     button.textContent = 'Export Excel';
-    button.title = 'Download a professionally formatted Excel report';
-    button.addEventListener('click', exportFormattedExcel, { capture: true });
+    button.title = 'Download a genuine Microsoft Excel .xlsx workbook';
+    button.addEventListener('click', exportNativeXlsx, { capture: true });
+
+    window.setTimeout(() => {
+      loadExcelJs().catch(() => {
+        // The export button will report a clear error if the library remains unavailable.
+      });
+    }, 800);
   }
 
   if (document.readyState === 'loading') {
