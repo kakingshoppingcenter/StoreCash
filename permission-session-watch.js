@@ -18,6 +18,15 @@
   document.body.appendChild(script);
 })();
 
+(function loadReportingRangeModeGuard() {
+  if (document.querySelector('script[data-ksc-reporting-range-mode-guard]')) return;
+  const script = document.createElement('script');
+  script.src = './reporting-range-mode-guard.js?v=20260803-1516';
+  script.dataset.kscReportingRangeModeGuard = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
+
 (function loadDynamicModuleGuards() {
   const guards = [
     {
