@@ -9,7 +9,7 @@
     },
     {
       selector: 'script[data-ksc-dashboard-analytics-guard]',
-      source: './dashboard-analytics-guard.js?v=20260801-1510',
+      source: './dashboard-analytics-guard.js?v=20260803-1238',
       attribute: 'kscDashboardAnalyticsGuard'
     }
   ];
