@@ -1,11 +1,62 @@
 'use strict';
 
 (function installDashboardAnalyticsGuard() {
-  if (window.__KSC_DASHBOARD_ANALYTICS_GUARD_V1__) return;
-  window.__KSC_DASHBOARD_ANALYTICS_GUARD_V1__ = true;
+  if (window.__KSC_DASHBOARD_ANALYTICS_GUARD_V2__) return;
+  window.__KSC_DASHBOARD_ANALYTICS_GUARD_V2__ = true;
 
   let syncing = false;
   let framePending = false;
+
+  function installReconciliationAlignmentStyles() {
+    if (document.getElementById('kscReconciliationAlignmentStyles')) return;
+
+    const style = document.createElement('style');
+    style.id = 'kscReconciliationAlignmentStyles';
+    style.textContent = `
+      #dashboardAnalytics .compact-reconciliation-card .recon-toolbar{
+        margin-bottom:10px;
+        padding-left:10px;
+        padding-right:10px;
+        box-sizing:border-box;
+      }
+      #dashboardAnalytics .compact-reconciliation-card .native-chart-frame{
+        display:grid;
+        width:100%;
+        min-width:0;
+        gap:0;
+      }
+      #dashboardAnalytics .compact-reconciliation-card .recon-table-head,
+      #dashboardAnalytics .compact-reconciliation-card .recon-row,
+      #dashboardAnalytics .compact-reconciliation-card .branch-bars{
+        width:100%;
+        min-width:0;
+        box-sizing:border-box;
+      }
+      #dashboardAnalytics .compact-reconciliation-card .native-chart-frame.is-empty .recon-table-head,
+      #dashboardAnalytics .compact-reconciliation-card .native-chart-frame.is-empty #branchBars{
+        display:none!important;
+      }
+      #dashboardAnalytics .compact-reconciliation-card #branchChartEmpty.chart-empty{
+        position:relative;
+        inset:auto;
+        width:100%;
+        min-height:72px;
+        margin:0;
+        padding:18px 16px;
+        box-sizing:border-box;
+        place-items:center;
+        border-radius:12px;
+        background:#fbfcfe;
+      }
+      @media(max-width:760px){
+        #dashboardAnalytics .compact-reconciliation-card #branchChartEmpty.chart-empty{
+          min-height:84px;
+          padding:20px 14px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
   function canViewDashboard() {
     try {
@@ -69,6 +120,21 @@
     );
   }
 
+  function alignReconciliation(section) {
+    const frame = section?.querySelector('.compact-reconciliation-card .native-chart-frame');
+    if (!frame) return;
+
+    const bars = frame.querySelector('#branchBars');
+    const empty = frame.querySelector('#branchChartEmpty');
+    const hasRows = Boolean(bars?.querySelector('.recon-row'));
+    const isEmpty = !hasRows;
+
+    frame.classList.toggle('is-empty', isEmpty);
+    if (empty && empty.getAttribute('aria-hidden') !== (isEmpty ? 'false' : 'true')) {
+      empty.setAttribute('aria-hidden', isEmpty ? 'false' : 'true');
+    }
+  }
+
   function secureAnalytics() {
     framePending = false;
     if (syncing) return;
@@ -93,6 +159,7 @@
         section.setAttribute('aria-hidden', dashboardActive ? 'false' : 'true');
       }
       correctCoverage(section);
+      alignReconciliation(section);
     } finally {
       syncing = false;
     }
@@ -112,6 +179,7 @@
   });
 
   function initialize() {
+    installReconciliationAlignmentStyles();
     observer.observe(document.documentElement, {
       subtree: true,
       childList: true,
