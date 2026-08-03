@@ -179,7 +179,7 @@ window.KSC_CONFIG = Object.freeze({
     },
     {
       selector: 'script[data-ksc-excel-export]',
-      source: './export-excel.js?v=20260729-1938',
+      source: './export-excel.js?v=20260803-1555',
       attribute: 'kscExcelExport'
     },
     {
