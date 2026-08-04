@@ -30,7 +30,7 @@
 (function loadReconciliationPeriodScroll() {
   if (document.querySelector('script[data-ksc-reconciliation-scroll]')) return;
   const script = document.createElement('script');
-  script.src = './reconciliation-scroll.js?v=20260804-0945';
+  script.src = './reconciliation-scroll.js?v=20260804-0958';
   script.dataset.kscReconciliationScroll = 'true';
   script.async = false;
   document.body.appendChild(script);
