@@ -27,11 +27,11 @@
   document.body.appendChild(script);
 })();
 
-(function loadReconciliationPeriodScroll() {
-  if (document.querySelector('script[data-ksc-reconciliation-scroll]')) return;
+(function loadCompactDashboardLayout() {
+  if (document.querySelector('script[data-ksc-reconciliation-scroll-v3]')) return;
   const script = document.createElement('script');
-  script.src = './reconciliation-scroll.js?v=20260804-0958';
-  script.dataset.kscReconciliationScroll = 'true';
+  script.src = './reconciliation-scroll.js?v=20260804-1020';
+  script.dataset.kscReconciliationScrollV3 = 'true';
   script.async = false;
   document.body.appendChild(script);
 })();
