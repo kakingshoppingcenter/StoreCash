@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1f3a" />
+  <title>Generate July Sample Data | Kaking Store Cash</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root{font-family:Inter,system-ui,sans-serif;color:#17243a;background:#eef3f8}
+    *{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at top right,#dfeeff 0,transparent 35%),#eef3f8}
+    .card{width:min(680px,100%);padding:28px;border:1px solid #cfdceb;border-radius:24px;background:#fff;box-shadow:0 28px 80px rgba(19,48,84,.16)}
+    .brand{display:flex;align-items:center;gap:14px}.brand img{width:58px;height:58px}.brand h1{margin:0;font-size:24px}.brand p{margin:4px 0 0;color:#66758a;font-size:12px}
+    .notice{margin:22px 0;padding:15px;border:1px solid #cfe0f2;border-radius:15px;background:#f6faff;color:#315a83;font-size:12px;line-height:1.6}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}.stat{padding:15px;border:1px solid #e1e8f0;border-radius:14px;background:#f9fbfd}.stat span{display:block;color:#66758a;font-size:11px}.stat strong{display:block;margin-top:6px;font-size:24px}
+    .status{min-height:58px;padding:14px;border-radius:14px;background:#f4f6f8;color:#475467;font-size:12px;line-height:1.55}.status.error{background:#fff2f0;color:#9c2018}.status.success{background:#effaf2;color:#176b3c}.status.busy{background:#eef6ff;color:#175da8}
+    .progress{height:9px;margin:14px 0 0;border-radius:999px;background:#e9eef4;overflow:hidden}.progress>i{display:block;width:0;height:100%;border-radius:inherit;background:#1769c2;transition:width .2s ease}
+    .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.btn{min-height:44px;padding:0 18px;border:1px solid #ccd6e2;border-radius:11px;background:#fff;color:#344054;font:inherit;font-weight:750;cursor:pointer}.btn.primary{border-color:#1769c2;background:#1769c2;color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed}
+    .small{margin:14px 0 0;color:#7b8798;font-size:10px;line-height:1.55}
+    @media(max-width:620px){body{padding:12px}.card{padding:20px;border-radius:19px}.grid{grid-template-columns:1fr}.actions{display:grid}.btn{width:100%}}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">
+      <img src="./assets/kaking-store-cash-icon.svg" alt="Kaking Store Cash logo" />
+      <div><h1>July 2026 Sample Data</h1><p>Administrator-only performance test generator</p></div>
+    </div>
+
+    <div class="notice"><strong>Temporary test cycle</strong><br />This creates one report for every active branch and every day from July 1–31, 2026. Generation stops when July already contains any report.</div>
+
+    <section class="grid" aria-label="Sample data preview">
+      <div class="stat"><span>Active branches</span><strong id="branchCount">—</strong></div>
+      <div class="stat"><span>Reports to create</span><strong id="reportCount">—</strong></div>
+      <div class="stat"><span>Existing July reports</span><strong id="existingCount">—</strong></div>
+    </section>
+
+    <div id="status" class="status busy">Checking your signed-in administrator session and July data…</div>
+    <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+    <div class="actions">
+      <button id="backBtn" class="btn" type="button">Return to StoreCash</button>
+      <button id="generateBtn" class="btn primary" type="button" disabled>Generate July Sample Data</button>
+    </div>
+    <p class="small">After testing, use Administration → Data Reset and Recovery. The reset removes all operational reports, verifications, and audit records while preserving branches, users, roles, and permissions.</p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4"></script>
+  <script>
+  'use strict';
+  (async function(){
+    const URL='https://cdmghdexjcqcmrwnbglw.supabase.co';
+    const KEY='sb_publishable_coaW1J3o1Ch0VChpZzEa1A_sh1QQ29F';
+    const START='2026-07-01';
+    const END='2026-07-31';
+    const client=window.supabase.createClient(URL,KEY);
+    const status=document.getElementById('status');
+    const generate=document.getElementById('generateBtn');
+    const back=document.getElementById('backBtn');
+    const bar=document.getElementById('progressBar');
+    const branchCount=document.getElementById('branchCount');
+    const reportCount=document.getElementById('reportCount');
+    const existingCount=document.getElementById('existingCount');
+    let user=null,profile=null,branches=[];
+    let running=false;
+
+    function setStatus(message,type='busy'){status.className='status '+type;status.textContent=message}
+    function setProgress(value){bar.style.width=Math.max(0,Math.min(100,value))+'%'}
+    function money(value){return Math.round((Number(value)+Number.EPSILON)*100)/100}
+    function dateFor(day){return `2026-07-${String(day).padStart(2,'0')}`}
+    function submittedAt(day){return new Date(Date.UTC(2026,6,day,13,0,0)).toISOString()}
+    function payments(branchNumber,day){
+      const weekday=new Date(Date.UTC(2026,6,day,12)).getUTCDay();
+      const weekend=weekday===0||weekday===6;
+      return {
+        cash:money(1800+branchNumber*325+day*47.35+(weekend?450:0)),
+        gcash:money(650+branchNumber*75+day*23.15),
+        maya:money(320+branchNumber*52+day*15.45),
+        credit:money(520+branchNumber*68+day*20.25),
+        debit:money(610+branchNumber*61+day*18.75),
+        cheque:(day+branchNumber)%7===0?money(700+branchNumber*100+day*11.5):0,
+        salmon:day%3===0?money(280+branchNumber*35+day*7.25):0,
+        other:(day+branchNumber)%4===0?money(150+day*9.5):0,
+        customer_count:55+branchNumber*8+day*3+(weekend?24:0)
+      };
+    }
+    async function countJuly(){
+      const result=await client.from('daily_reports').select('id',{count:'exact',head:true}).gte('business_date',START).lte('business_date',END);
+      if(result.error)throw result.error;
+      return Number(result.count||0);
+    }
+    async function insertChunks(table,rows,select,chunkSize=70){
+      const output=[];
+      for(let index=0;index<rows.length;index+=chunkSize){
+        const chunk=rows.slice(index,index+chunkSize);
+        const query=client.from(table).insert(chunk);
+        const result=select?await query.select(select):await query;
+        if(result.error)throw result.error;
+        if(Array.isArray(result.data))output.push(...result.data);
+        setProgress(15+Math.round(((index+chunk.length)/rows.length)*45));
+      }
+      return output;
+    }
+    async function initialize(){
+      const sessionResult=await client.auth.getSession();
+      if(sessionResult.error)throw sessionResult.error;
+      user=sessionResult.data?.session?.user||null;
+      if(!user)throw new Error('No active StoreCash session was found. Return to StoreCash, sign in as administrator, then open this page again.');
+      const profileResult=await client.from('profiles').select('id,full_name,role,active').eq('id',user.id).single();
+      if(profileResult.error)throw profileResult.error;
+      profile=profileResult.data;
+      if(!profile?.active||profile.role!=='admin')throw new Error('Only an active System Administrator can generate sample data.');
+      const [branchResult,existing]=await Promise.all([
+        client.from('branches').select('id,code,name').eq('active',true).order('code'),
+        countJuly()
+      ]);
+      if(branchResult.error)throw branchResult.error;
+      branches=branchResult.data||[];
+      branchCount.textContent=branches.length.toLocaleString('en-PH');
+      reportCount.textContent=(branches.length*31).toLocaleString('en-PH');
+      existingCount.textContent=existing.toLocaleString('en-PH');
+      if(existing>0){
+        setStatus(`July 2026 already contains ${existing.toLocaleString('en-PH')} report(s). Open the dashboard to review them, or use the protected reset before generating a new test cycle.`,'success');
+        generate.disabled=true;
+        return;
+      }
+      if(!branches.length)throw new Error('No active branches are available.');
+      setStatus(`Ready to create ${(branches.length*31).toLocaleString('en-PH')} reports across ${branches.length.toLocaleString('en-PH')} branches.`,'success');
+      generate.disabled=false;
+      if(new URL(location.href).searchParams.get('run')==='1'){
+        let seconds=3;
+        const tick=()=>{
+          if(running)return;
+          if(seconds<=0){generate.click();return;}
+          setStatus(`Generation will start automatically in ${seconds} second${seconds===1?'':'s'}…`,'busy');
+          seconds-=1;
+          setTimeout(tick,1000);
+        };
+        tick();
+      }
+    }
+    async function generateData(){
+      if(running)return;
+      if(!confirm('Generate temporary July 2026 sample reports now?'))return;
+      running=true;generate.disabled=true;back.disabled=true;setProgress(3);
+      try{
+        const existing=await countJuly();
+        if(existing>0)throw new Error(`July 2026 already contains ${existing} report(s). No records were added.`);
+        setStatus('Creating daily reports for every active branch…','busy');
+        const reportRows=[];
+        branches.forEach((branch,index)=>{
+          const branchNumber=index+1;
+          for(let day=1;day<=31;day+=1){
+            const date=dateFor(day);const submitted=submittedAt(day);
+            reportRows.push({
+              branch_id:branch.id,business_date:date,...payments(branchNumber,day),
+              store_remarks:`[SAMPLE DATA JULY 2026] Performance test record for ${branch.code} on ${date}.`,
+              status:'pending_verification',submitted_by:user.id,submitted_at:submitted,
+              created_at:new Date(new Date(submitted).getTime()-1200000).toISOString(),updated_at:submitted
+            });
+          }
+        });
+        const inserted=await insertChunks('daily_reports',reportRows,'id,branch_id,business_date,reported_total');
+        const byKey=new Map(inserted.map(row=>[`${row.branch_id}:${row.business_date}`,row]));
+        const verificationRows=[];let pending=0,matched=0,different=0;
+        branches.forEach((branch,index)=>{
+          const branchNumber=index+1;
+          for(let day=1;day<=31;day+=1){
+            if((day+branchNumber)%5===0){pending+=1;continue;}
+            const report=byKey.get(`${branch.id}:${dateFor(day)}`);
+            if(!report)continue;
+            const variance=(day+branchNumber)%7===0?((day+branchNumber)%2===0?100:-75):0;
+            const actual=money(Number(report.reported_total||0)+variance);
+            const verified=new Date(new Date(submittedAt(day)).getTime()+7200000).toISOString();
+            verificationRows.push({
+              report_id:report.id,actual_received:actual,reading:actual,
+              remarks:variance<0?`[SAMPLE DATA] Simulated shortage of ${Math.abs(variance).toFixed(2)}.`:variance>0?`[SAMPLE DATA] Simulated overage of ${variance.toFixed(2)}.`:null,
+              verified_by:user.id,verified_at:verified,created_at:verified,updated_at:verified
+            });
+            if(variance===0)matched+=1;else different+=1;
+          }
+        });
+        setStatus('Creating matched, pending, shortage, and overage test cases…','busy');setProgress(65);
+        await insertChunks('deposit_verifications',verificationRows,'id',60);
+        const verifiedCount=await countJuly();
+        if(verifiedCount!==reportRows.length)throw new Error(`Generation completed with an unexpected count: ${verifiedCount} of ${reportRows.length} reports.`);
+        localStorage.setItem(`ksc:reporting-period:${user.id}`,JSON.stringify({mode:'range',anchor:'2026-07-31',from:START,to:END}));
+        setProgress(100);
+        setStatus(`Success: ${reportRows.length} reports created — ${matched} matched, ${pending} pending, and ${different} with controlled differences. Opening the dashboard…`,'success');
+        setTimeout(()=>location.replace('./?module=dashboard&sample_ready=20260804-0920'),1800);
+      }catch(error){
+        console.error(error);setStatus(error?.message||'Unable to generate sample data.','error');generate.disabled=false;back.disabled=false;
+      }finally{running=false}
+    }
+    generate.addEventListener('click',generateData);
+    back.addEventListener('click',()=>location.href='./?module=dashboard');
+    try{await initialize()}catch(error){console.error(error);setStatus(error?.message||'Unable to initialize the generator.','error');back.disabled=false}
+  })();
+  </script>
+</body>
+</html>
