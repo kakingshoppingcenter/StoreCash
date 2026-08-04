@@ -36,6 +36,15 @@
   document.body.appendChild(script);
 })();
 
+(function loadMatchedReportRatio() {
+  if (document.querySelector('script[data-ksc-matched-report-ratio]')) return;
+  const script = document.createElement('script');
+  script.src = './matched-report-ratio.js?v=20260804-1008';
+  script.dataset.kscMatchedReportRatio = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
+
 (function loadScopedAutoAccountReconciliation() {
   if (!document.querySelector('script[data-ksc-checker-auto-account]')) {
     const feature = document.createElement('script');
