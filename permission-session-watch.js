@@ -46,9 +46,17 @@
 })();
 
 (function loadJulySampleDataAdministration() {
+  if (!document.querySelector('script[data-ksc-admin-sample-data-direct]')) {
+    const direct = document.createElement('script');
+    direct.src = './admin-sample-data-direct.js?v=20260804-0902';
+    direct.dataset.kscAdminSampleDataDirect = 'true';
+    direct.async = false;
+    document.body.appendChild(direct);
+  }
+
   if (document.querySelector('script[data-ksc-admin-sample-data]')) return;
   const script = document.createElement('script');
-  script.src = './admin-sample-data.js?v=20260804-0835';
+  script.src = './admin-sample-data.js?v=20260804-0902';
   script.dataset.kscAdminSampleData = 'true';
   script.async = false;
   document.body.appendChild(script);
