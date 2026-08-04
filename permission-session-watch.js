@@ -45,6 +45,15 @@
   }
 })();
 
+(function loadJulySampleDataAdministration() {
+  if (document.querySelector('script[data-ksc-admin-sample-data]')) return;
+  const script = document.createElement('script');
+  script.src = './admin-sample-data.js?v=20260804-0835';
+  script.dataset.kscAdminSampleData = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
+
 (function loadDynamicModuleGuards() {
   const guards = [
     {
