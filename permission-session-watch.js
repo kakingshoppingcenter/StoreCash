@@ -54,6 +54,15 @@
   document.body.appendChild(script);
 })();
 
+(function loadCompactPhoneHeader() {
+  if (document.querySelector('script[data-ksc-mobile-compact-header]')) return;
+  const script = document.createElement('script');
+  script.src = './mobile-compact-header.js?v=20260804-1050';
+  script.dataset.kscMobileCompactHeader = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
+
 (function loadScopedAutoAccountReconciliation() {
   if (!document.querySelector('script[data-ksc-checker-auto-account]')) {
     const feature = document.createElement('script');
