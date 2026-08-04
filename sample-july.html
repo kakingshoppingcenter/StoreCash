@@ -11,11 +11,11 @@
   <style>
     :root{font-family:Inter,system-ui,sans-serif;color:#17243a;background:#eef3f8}
     *{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at top right,#dfeeff 0,transparent 35%),#eef3f8}
-    .card{width:min(680px,100%);padding:28px;border:1px solid #cfdceb;border-radius:24px;background:#fff;box-shadow:0 28px 80px rgba(19,48,84,.16)}
+    .card{width:min(700px,100%);padding:28px;border:1px solid #cfdceb;border-radius:24px;background:#fff;box-shadow:0 28px 80px rgba(19,48,84,.16)}
     .brand{display:flex;align-items:center;gap:14px}.brand img{width:58px;height:58px}.brand h1{margin:0;font-size:24px}.brand p{margin:4px 0 0;color:#66758a;font-size:12px}
     .notice{margin:22px 0;padding:15px;border:1px solid #cfe0f2;border-radius:15px;background:#f6faff;color:#315a83;font-size:12px;line-height:1.6}
     .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}.stat{padding:15px;border:1px solid #e1e8f0;border-radius:14px;background:#f9fbfd}.stat span{display:block;color:#66758a;font-size:11px}.stat strong{display:block;margin-top:6px;font-size:24px}
-    .status{min-height:58px;padding:14px;border-radius:14px;background:#f4f6f8;color:#475467;font-size:12px;line-height:1.55}.status.error{background:#fff2f0;color:#9c2018}.status.success{background:#effaf2;color:#176b3c}.status.busy{background:#eef6ff;color:#175da8}
+    .status{min-height:58px;padding:14px;border-radius:14px;background:#f4f6f8;color:#475467;font-size:12px;line-height:1.55}.status.error{background:#fff2f0;color:#9c2018}.status.success{background:#effaf2;color:#176b3c}.status.busy{background:#eef6ff;color:#175da8}.status.warning{background:#fff8e8;color:#725100}
     .progress{height:9px;margin:14px 0 0;border-radius:999px;background:#e9eef4;overflow:hidden}.progress>i{display:block;width:0;height:100%;border-radius:inherit;background:#1769c2;transition:width .2s ease}
     .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.btn{min-height:44px;padding:0 18px;border:1px solid #ccd6e2;border-radius:11px;background:#fff;color:#344054;font:inherit;font-weight:750;cursor:pointer}.btn.primary{border-color:#1769c2;background:#1769c2;color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed}
     .small{margin:14px 0 0;color:#7b8798;font-size:10px;line-height:1.55}
@@ -29,11 +29,11 @@
       <div><h1>July 2026 Sample Data</h1><p>Administrator-only performance test generator</p></div>
     </div>
 
-    <div class="notice"><strong>Temporary test cycle</strong><br />This creates one report for every active branch and every day from July 1–31, 2026. Generation stops when July already contains any report.</div>
+    <div class="notice"><strong>Temporary test cycle</strong><br />Creates one report for every active branch and every day from July 1–31, 2026. A partial sample cycle can be resumed, but real July records are never mixed with sample data.</div>
 
     <section class="grid" aria-label="Sample data preview">
       <div class="stat"><span>Active branches</span><strong id="branchCount">—</strong></div>
-      <div class="stat"><span>Reports to create</span><strong id="reportCount">—</strong></div>
+      <div class="stat"><span>Expected reports</span><strong id="reportCount">—</strong></div>
       <div class="stat"><span>Existing July reports</span><strong id="existingCount">—</strong></div>
     </section>
 
@@ -55,6 +55,7 @@
     const KEY='sb_publishable_coaW1J3o1Ch0VChpZzEa1A_sh1QQ29F';
     const START='2026-07-01';
     const END='2026-07-31';
+    const SAMPLE_PREFIX='[SAMPLE DATA JULY 2026]';
     const client=window.supabase.createClient(URL,KEY);
     const status=document.getElementById('status');
     const generate=document.getElementById('generateBtn');
@@ -63,14 +64,16 @@
     const branchCount=document.getElementById('branchCount');
     const reportCount=document.getElementById('reportCount');
     const existingCount=document.getElementById('existingCount');
-    let user=null,profile=null,branches=[];
-    let running=false;
+    let user=null,profile=null,branches=[],existingReports=[];
+    let running=false,canResume=false;
 
     function setStatus(message,type='busy'){status.className='status '+type;status.textContent=message}
     function setProgress(value){bar.style.width=Math.max(0,Math.min(100,value))+'%'}
     function money(value){return Math.round((Number(value)+Number.EPSILON)*100)/100}
     function dateFor(day){return `2026-07-${String(day).padStart(2,'0')}`}
     function submittedAt(day){return new Date(Date.UTC(2026,6,day,13,0,0)).toISOString()}
+    function reportKey(branchId,date){return `${branchId}:${date}`}
+    function isSampleReport(row){return String(row?.store_remarks||'').startsWith(SAMPLE_PREFIX)}
     function payments(branchNumber,day){
       const weekday=new Date(Date.UTC(2026,6,day,12)).getUTCDay();
       const weekend=weekday===0||weekday===6;
@@ -86,22 +89,67 @@
         customer_count:55+branchNumber*8+day*3+(weekend?24:0)
       };
     }
-    async function countJuly(){
-      const result=await client.from('daily_reports').select('id',{count:'exact',head:true}).gte('business_date',START).lte('business_date',END);
+    async function readJulyReports(){
+      const result=await client.from('daily_reports')
+        .select('id,branch_id,business_date,reported_total,store_remarks,status')
+        .gte('business_date',START).lte('business_date',END)
+        .order('business_date').limit(1000);
       if(result.error)throw result.error;
-      return Number(result.count||0);
+      return result.data||[];
     }
-    async function insertChunks(table,rows,select,chunkSize=70){
+    async function readVerifications(reportIds){
+      const rows=[];
+      for(let index=0;index<reportIds.length;index+=70){
+        const ids=reportIds.slice(index,index+70);
+        if(!ids.length)continue;
+        const result=await client.from('deposit_verifications').select('id,report_id').in('report_id',ids);
+        if(result.error)throw result.error;
+        rows.push(...(result.data||[]));
+      }
+      return rows;
+    }
+    async function insertChunks(table,rows,select,chunkSize,startProgress,endProgress){
       const output=[];
+      if(!rows.length){setProgress(endProgress);return output}
       for(let index=0;index<rows.length;index+=chunkSize){
         const chunk=rows.slice(index,index+chunkSize);
         const query=client.from(table).insert(chunk);
         const result=select?await query.select(select):await query;
         if(result.error)throw result.error;
         if(Array.isArray(result.data))output.push(...result.data);
-        setProgress(15+Math.round(((index+chunk.length)/rows.length)*45));
+        const ratio=(index+chunk.length)/rows.length;
+        setProgress(startProgress+Math.round(ratio*(endProgress-startProgress)));
       }
       return output;
+    }
+    function assessExisting(rows){
+      const sample=rows.filter(isSampleReport);
+      const operational=rows.filter(row=>!isSampleReport(row));
+      return {sample,operational};
+    }
+    function setReadyState(){
+      const expected=branches.length*31;
+      const assessment=assessExisting(existingReports);
+      branchCount.textContent=branches.length.toLocaleString('en-PH');
+      reportCount.textContent=expected.toLocaleString('en-PH');
+      existingCount.textContent=existingReports.length.toLocaleString('en-PH');
+      canResume=assessment.operational.length===0&&branches.length>0;
+
+      if(assessment.operational.length>0){
+        setStatus(`Generation is blocked because July contains ${assessment.operational.length.toLocaleString('en-PH')} operational report(s) that are not marked as sample data. Preserve or reset those records before creating a test cycle.`,'error');
+        generate.disabled=true;
+        return;
+      }
+      if(existingReports.length>0){
+        const missing=Math.max(0,expected-existingReports.length);
+        generate.textContent=missing>0?'Complete July Sample Data':'Repair Sample Verifications';
+        setStatus(`A partial sample cycle was found: ${existingReports.length.toLocaleString('en-PH')} sample report(s) already exist. The system can safely resume and create only the ${missing.toLocaleString('en-PH')} missing report(s), then repair missing verification examples.`,'warning');
+        generate.disabled=false;
+        return;
+      }
+      generate.textContent='Generate July Sample Data';
+      setStatus(`Ready to create ${expected.toLocaleString('en-PH')} reports across ${branches.length.toLocaleString('en-PH')} active branches.`,'success');
+      generate.disabled=false;
     }
     async function initialize(){
       const sessionResult=await client.auth.getSession();
@@ -112,29 +160,20 @@
       if(profileResult.error)throw profileResult.error;
       profile=profileResult.data;
       if(!profile?.active||profile.role!=='admin')throw new Error('Only an active System Administrator can generate sample data.');
-      const [branchResult,existing]=await Promise.all([
+      const [branchResult,reports]=await Promise.all([
         client.from('branches').select('id,code,name').eq('active',true).order('code'),
-        countJuly()
+        readJulyReports()
       ]);
       if(branchResult.error)throw branchResult.error;
       branches=branchResult.data||[];
-      branchCount.textContent=branches.length.toLocaleString('en-PH');
-      reportCount.textContent=(branches.length*31).toLocaleString('en-PH');
-      existingCount.textContent=existing.toLocaleString('en-PH');
-      if(existing>0){
-        setStatus(`July 2026 already contains ${existing.toLocaleString('en-PH')} report(s). Open the dashboard to review them, or use the protected reset before generating a new test cycle.`,'success');
-        generate.disabled=true;
-        return;
-      }
-      if(!branches.length)throw new Error('No active branches are available.');
-      setStatus(`Ready to create ${(branches.length*31).toLocaleString('en-PH')} reports across ${branches.length.toLocaleString('en-PH')} branches.`,'success');
-      generate.disabled=false;
-      if(new URL(location.href).searchParams.get('run')==='1'){
+      existingReports=reports;
+      setReadyState();
+      if(canResume&&new URL(location.href).searchParams.get('run')==='1'){
         let seconds=3;
         const tick=()=>{
           if(running)return;
           if(seconds<=0){generate.click();return;}
-          setStatus(`Generation will start automatically in ${seconds} second${seconds===1?'':'s'}…`,'busy');
+          setStatus(`Safe sample generation will start in ${seconds} second${seconds===1?'':'s'}…`,'busy');
           seconds-=1;
           setTimeout(tick,1000);
         };
@@ -142,36 +181,55 @@
       }
     }
     async function generateData(){
-      if(running)return;
-      if(!confirm('Generate temporary July 2026 sample reports now?'))return;
+      if(running||!canResume)return;
+      const action=existingReports.length?'complete the temporary July 2026 sample cycle':'generate temporary July 2026 sample reports';
+      if(!confirm(`Proceed and ${action} now?`))return;
       running=true;generate.disabled=true;back.disabled=true;setProgress(3);
       try{
-        const existing=await countJuly();
-        if(existing>0)throw new Error(`July 2026 already contains ${existing} report(s). No records were added.`);
-        setStatus('Creating daily reports for every active branch…','busy');
-        const reportRows=[];
+        const freshExisting=await readJulyReports();
+        const assessment=assessExisting(freshExisting);
+        if(assessment.operational.length>0)throw new Error(`July now contains ${assessment.operational.length} operational report(s). No sample records were added.`);
+
+        const existingByKey=new Map(freshExisting.map(row=>[reportKey(row.branch_id,row.business_date),row]));
+        const missingRows=[];
         branches.forEach((branch,index)=>{
           const branchNumber=index+1;
           for(let day=1;day<=31;day+=1){
-            const date=dateFor(day);const submitted=submittedAt(day);
-            reportRows.push({
+            const date=dateFor(day);
+            if(existingByKey.has(reportKey(branch.id,date)))continue;
+            const submitted=submittedAt(day);
+            missingRows.push({
               branch_id:branch.id,business_date:date,...payments(branchNumber,day),
-              store_remarks:`[SAMPLE DATA JULY 2026] Performance test record for ${branch.code} on ${date}.`,
+              store_remarks:`${SAMPLE_PREFIX} Performance test record for ${branch.code} on ${date}.`,
               status:'pending_verification',submitted_by:user.id,submitted_at:submitted,
               created_at:new Date(new Date(submitted).getTime()-1200000).toISOString(),updated_at:submitted
             });
           }
         });
-        const inserted=await insertChunks('daily_reports',reportRows,'id,branch_id,business_date,reported_total');
-        const byKey=new Map(inserted.map(row=>[`${row.branch_id}:${row.business_date}`,row]));
+
+        setStatus(`Creating ${missingRows.length.toLocaleString('en-PH')} missing daily report(s)…`,'busy');
+        await insertChunks('daily_reports',missingRows,'id,branch_id,business_date,reported_total,store_remarks,status',60,8,55);
+
+        const allReports=await readJulyReports();
+        const postAssessment=assessExisting(allReports);
+        if(postAssessment.operational.length>0)throw new Error('An operational July report appeared during generation. Verification generation was stopped.');
+        const expectedCount=branches.length*31;
+        if(allReports.length!==expectedCount)throw new Error(`Expected ${expectedCount} sample reports but found ${allReports.length}. Generation stopped before verification repair.`);
+
+        const existingVerificationRows=await readVerifications(allReports.map(row=>row.id));
+        const verifiedReportIds=new Set(existingVerificationRows.map(row=>row.report_id));
+        const reportsByKey=new Map(allReports.map(row=>[reportKey(row.branch_id,row.business_date),row]));
         const verificationRows=[];let pending=0,matched=0,different=0;
+
         branches.forEach((branch,index)=>{
           const branchNumber=index+1;
           for(let day=1;day<=31;day+=1){
             if((day+branchNumber)%5===0){pending+=1;continue;}
-            const report=byKey.get(`${branch.id}:${dateFor(day)}`);
+            const report=reportsByKey.get(reportKey(branch.id,dateFor(day)));
             if(!report)continue;
             const variance=(day+branchNumber)%7===0?((day+branchNumber)%2===0?100:-75):0;
+            if(variance===0)matched+=1;else different+=1;
+            if(verifiedReportIds.has(report.id))continue;
             const actual=money(Number(report.reported_total||0)+variance);
             const verified=new Date(new Date(submittedAt(day)).getTime()+7200000).toISOString();
             verificationRows.push({
@@ -179,19 +237,20 @@
               remarks:variance<0?`[SAMPLE DATA] Simulated shortage of ${Math.abs(variance).toFixed(2)}.`:variance>0?`[SAMPLE DATA] Simulated overage of ${variance.toFixed(2)}.`:null,
               verified_by:user.id,verified_at:verified,created_at:verified,updated_at:verified
             });
-            if(variance===0)matched+=1;else different+=1;
           }
         });
-        setStatus('Creating matched, pending, shortage, and overage test cases…','busy');setProgress(65);
-        await insertChunks('deposit_verifications',verificationRows,'id',60);
-        const verifiedCount=await countJuly();
-        if(verifiedCount!==reportRows.length)throw new Error(`Generation completed with an unexpected count: ${verifiedCount} of ${reportRows.length} reports.`);
+
+        setStatus(`Creating ${verificationRows.length.toLocaleString('en-PH')} missing verification example(s)…`,'busy');
+        await insertChunks('deposit_verifications',verificationRows,'id,report_id',55,60,94);
+
+        const finalReports=await readJulyReports();
+        if(finalReports.length!==expectedCount)throw new Error(`Completion check failed: ${finalReports.length} of ${expectedCount} reports are present.`);
         localStorage.setItem(`ksc:reporting-period:${user.id}`,JSON.stringify({mode:'range',anchor:'2026-07-31',from:START,to:END}));
         setProgress(100);
-        setStatus(`Success: ${reportRows.length} reports created — ${matched} matched, ${pending} pending, and ${different} with controlled differences. Opening the dashboard…`,'success');
-        setTimeout(()=>location.replace('./?module=dashboard&sample_ready=20260804-0920'),1800);
+        setStatus(`Success: ${expectedCount} reports are ready — ${matched} matched, ${pending} pending, and ${different} with controlled differences. Opening the dashboard…`,'success');
+        setTimeout(()=>location.replace('./?module=dashboard&sample_ready=20260804-0935'),1800);
       }catch(error){
-        console.error(error);setStatus(error?.message||'Unable to generate sample data.','error');generate.disabled=false;back.disabled=false;
+        console.error(error);setStatus(error?.message||'Unable to complete sample data.','error');generate.disabled=false;back.disabled=false;
       }finally{running=false}
     }
     generate.addEventListener('click',generateData);
