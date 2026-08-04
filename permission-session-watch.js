@@ -27,6 +27,15 @@
   document.body.appendChild(script);
 })();
 
+(function loadReconciliationPeriodScroll() {
+  if (document.querySelector('script[data-ksc-reconciliation-scroll]')) return;
+  const script = document.createElement('script');
+  script.src = './reconciliation-scroll.js?v=20260804-0945';
+  script.dataset.kscReconciliationScroll = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
+
 (function loadScopedAutoAccountReconciliation() {
   if (!document.querySelector('script[data-ksc-checker-auto-account]')) {
     const feature = document.createElement('script');
