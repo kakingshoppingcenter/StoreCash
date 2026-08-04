@@ -8,3 +8,7 @@ verify_jwt = false
 [functions.admin-delete-user]
 # The function independently validates the caller, deletion confirmation, account role, and financial references.
 verify_jwt = false
+
+[functions.admin-sample-data]
+# The function validates the caller token and requires an active System Administrator before generation.
+verify_jwt = false
