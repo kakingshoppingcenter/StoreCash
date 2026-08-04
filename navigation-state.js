@@ -286,7 +286,7 @@
       link.dataset.kscAnalyticsContrast = 'true';
       document.head.appendChild(link);
     }
-    link.href = './analytics-contrast-fix.css?v=20260801-1345';
+    link.href = './analytics-contrast-fix.css?v=20260804-0925';
   }
 
   loadAnalyticsContrastFix();
