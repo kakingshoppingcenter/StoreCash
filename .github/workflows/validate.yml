@@ -38,3 +38,4 @@ jobs:
           deno check supabase/functions/admin-users/index.ts
           deno check supabase/functions/admin-delete-user/index.ts
           deno check supabase/functions/admin-reset-data/index.ts
+          deno check supabase/functions/admin-sample-data/index.ts
