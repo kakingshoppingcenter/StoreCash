@@ -171,3 +171,38 @@ html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat
 html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.alert .analytics-stat-note{
   color:#7c4b46!important;
 }
+
+/* Payment Mix totals must remain fully readable. The original donut used a
+   29% inset and an ellipsis, leaving only about 67px for the total amount. */
+html body #dashboardAnalytics #paymentMixChart.native-donut::after,
+html body #dashboardAnalytics #paymentMixChart .donut-center{
+  inset:20%!important;
+}
+
+html body #dashboardAnalytics #paymentMixChart .donut-center{
+  min-width:0!important;
+  padding:0 4px!important;
+}
+
+html body #dashboardAnalytics #paymentMixChart .donut-center strong{
+  display:block!important;
+  width:100%!important;
+  max-width:none!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  white-space:nowrap!important;
+  font-size:clamp(9.5px,1vw,12px)!important;
+  line-height:1.05!important;
+  letter-spacing:-.045em!important;
+  font-variant-numeric:tabular-nums!important;
+}
+
+html body #dashboardAnalytics #paymentMixChart .donut-center span{
+  margin-top:5px!important;
+}
+
+@media(max-width:520px){
+  html body #dashboardAnalytics #paymentMixChart .donut-center strong{
+    font-size:10px!important;
+  }
+}
