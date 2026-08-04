@@ -94,6 +94,33 @@ html body .view-hidden{
   }
 }
 
+/* Submission Coverage uses a dark success surface. Every text layer must use
+   a light foreground; otherwise the normal muted analytics colors disappear. */
+html body #dashboardAnalytics .analytics-stats #statCoverageCard.analytics-stat.success{
+  background:linear-gradient(135deg,#18894d 0%,#0f713e 100%)!important;
+  border-color:#0d733d!important;
+  box-shadow:0 10px 26px rgba(15,113,62,.2)!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statCoverageCard.analytics-stat.success::after{
+  background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.025))!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statCoverageCard.analytics-stat.success .analytics-stat-label{
+  color:rgba(255,255,255,.82)!important;
+  text-shadow:none!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statCoverageCard.analytics-stat.success .analytics-stat-value{
+  color:#ffffff!important;
+  text-shadow:0 1px 1px rgba(0,0,0,.12)!important;
+}
+
+html body #dashboardAnalytics .analytics-stats #statCoverageCard.analytics-stat.success .analytics-stat-note{
+  color:rgba(255,255,255,.86)!important;
+  text-shadow:none!important;
+}
+
 html body #dashboardAnalytics .analytics-stats #statMatchedCard.analytics-stat.success,
 html body #dashboardAnalytics .analytics-stats #statAttentionCard.analytics-stat.success{
   background:linear-gradient(135deg,#ecfdf3 0%,#f7fffa 100%)!important;
