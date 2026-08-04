@@ -1,6 +1,9 @@
 'use strict';
 
 (function improvePasswordChangePlacement() {
+  if (window.__KSC_PASSWORD_ACTION_LAYOUT_V2__) return;
+  window.__KSC_PASSWORD_ACTION_LAYOUT_V2__ = true;
+
   const LOCK_ICON = `
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <rect x="5" y="10" width="14" height="10" rx="2"></rect>
@@ -31,14 +34,8 @@
         align-items:center!important;
         gap:10px 11px!important;
       }
-      .profile.password-change-enabled>.avatar{
-        grid-column:1!important;
-        grid-row:1!important;
-      }
-      .profile.password-change-enabled>.profile-copy{
-        grid-column:2!important;
-        grid-row:1!important;
-      }
+      .profile.password-change-enabled>.avatar{grid-column:1!important;grid-row:1!important}
+      .profile.password-change-enabled>.profile-copy{grid-column:2!important;grid-row:1!important}
       .profile-actions{
         grid-column:1/-1!important;
         grid-row:2!important;
@@ -58,7 +55,6 @@
         align-items:center!important;
         justify-content:center!important;
         gap:7px!important;
-        flex:1 1 auto!important;
         border:1px solid #2d4969!important;
         border-radius:11px!important;
         background:rgba(255,255,255,.04)!important;
@@ -70,7 +66,6 @@
         white-space:nowrap!important;
         cursor:pointer!important;
         box-shadow:none!important;
-        transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease!important;
       }
       .profile-action-button:hover:not(:disabled){
         transform:translateY(-1px)!important;
@@ -92,26 +87,13 @@
         stroke-linecap:round!important;
         stroke-linejoin:round!important;
       }
-      .profile-action-label{
-        display:inline-block!important;
-        overflow:hidden!important;
-        text-overflow:ellipsis!important;
-      }
+      .profile-action-label{display:inline-block!important;overflow:hidden!important;text-overflow:ellipsis!important}
       #logoutBtn.profile-action-button{
         color:#ffd9d5!important;
         border-color:rgba(239,129,119,.32)!important;
         background:rgba(180,35,24,.08)!important;
       }
-      #logoutBtn.profile-action-button:hover:not(:disabled){
-        color:#fff!important;
-        border-color:rgba(239,129,119,.55)!important;
-        background:rgba(180,35,24,.24)!important;
-      }
-      .password-change-mobile{display:none;align-items:center;gap:7px}
-      .password-change-mobile svg{
-        width:14px;height:14px;fill:none;stroke:currentColor;
-        stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;
-      }
+      #changePasswordMobileBtn,.password-change-mobile{display:none!important}
 
       @media(max-width:1120px){
         .profile.password-change-enabled{
@@ -127,6 +109,7 @@
           gap:7px!important;
         }
         .profile-action-button{
+          display:inline-flex!important;
           width:40px!important;
           min-width:40px!important;
           height:40px!important;
@@ -134,13 +117,6 @@
           padding:0!important;
         }
         .profile-action-label{display:none!important}
-        #changePasswordBtn{display:none!important}
-        .password-change-mobile{display:inline-flex}
-      }
-
-      @media(max-width:620px){
-        .password-change-mobile{width:100%;justify-content:center}
-        .top-actions .password-change-mobile{order:4}
       }
     `;
   }
@@ -150,21 +126,28 @@
     button.classList.add('profile-action-button');
     button.title = title;
     button.setAttribute('aria-label', title);
-
     if (button.dataset.profileActionLabel !== label) {
       button.innerHTML = `${icon}<span class="profile-action-label">${label}</span>`;
       button.dataset.profileActionLabel = label;
     }
   }
 
-  function connectDesktopLayout() {
+  function applyProfileActions() {
+    installStyles();
+
+    const duplicate = document.getElementById('changePasswordMobileBtn');
+    if (duplicate) {
+      duplicate.hidden = true;
+      duplicate.setAttribute('aria-hidden', 'true');
+      duplicate.tabIndex = -1;
+    }
+
     const passwordButton = document.getElementById('changePasswordBtn');
     const logoutButton = document.getElementById('logoutBtn');
     const profileArea = logoutButton?.closest('.profile');
     if (!passwordButton || !logoutButton || !profileArea) return false;
 
     profileArea.classList.add('password-change-enabled');
-
     let actions = profileArea.querySelector('.profile-actions');
     if (!actions) {
       actions = document.createElement('div');
@@ -181,30 +164,6 @@
     return true;
   }
 
-  function createMobileButton() {
-    if (document.getElementById('changePasswordMobileBtn')) return true;
-
-    const desktopButton = document.getElementById('changePasswordBtn');
-    const topActions = document.querySelector('.top-actions');
-    if (!desktopButton || !topActions) return false;
-
-    const button = document.createElement('button');
-    button.id = 'changePasswordMobileBtn';
-    button.className = 'btn secondary password-change-mobile';
-    button.type = 'button';
-    button.innerHTML = `${LOCK_ICON}<span>Change Password</span>`;
-    button.addEventListener('click', () => desktopButton.click());
-    topActions.insertBefore(button, document.getElementById('refreshBtn') || topActions.firstChild);
-    return true;
-  }
-
-  function applyProfileActions() {
-    installStyles();
-    const connected = connectDesktopLayout();
-    const mobileReady = createMobileButton();
-    return connected && mobileReady;
-  }
-
   applyProfileActions();
 
   let attempts = 0;
@@ -213,6 +172,8 @@
     if (applyProfileActions() || attempts >= 40) window.clearInterval(timer);
   }, 250);
 
-  const observer = new MutationObserver(() => applyProfileActions());
+  const observer = new MutationObserver((mutations) => {
+    if (mutations.some((mutation) => mutation.type === 'childList')) applyProfileActions();
+  });
   observer.observe(document.body, { subtree:true, childList:true });
 })();
