@@ -1,10 +1,10 @@
 'use strict';
 
 (function installPeriodResultScrolling() {
-  if (window.__KSC_PERIOD_RESULT_SCROLL_V2__) return;
-  window.__KSC_PERIOD_RESULT_SCROLL_V2__ = true;
+  if (window.__KSC_PERIOD_RESULT_SCROLL_V3__) return;
+  window.__KSC_PERIOD_RESULT_SCROLL_V3__ = true;
 
-  const STYLE_ID = 'kscPeriodResultScrollStyles';
+  const STYLE_ID = 'kscPeriodResultScrollStylesV3';
   const observedTargets = new WeakSet();
   let framePending = false;
   let lastPeriodKey = '';
@@ -19,14 +19,81 @@
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
+      /* Compact dashboard rhythm */
+      #dashboardAnalytics{
+        gap:10px!important;
+        margin-bottom:10px!important;
+      }
+      #dashboardAnalytics .analytics-grid{
+        gap:10px!important;
+        align-items:stretch!important;
+      }
+      #dashboardAnalytics .analytics-card{
+        padding:12px!important;
+      }
+      #dashboardAnalytics .analytics-card-head{
+        margin-bottom:8px!important;
+      }
+      #dashboardAnalytics .recon-toolbar{
+        margin-bottom:6px!important;
+        padding:6px 8px!important;
+      }
+      #dashboardAnalytics .payment-card{
+        display:grid!important;
+        grid-template-rows:auto minmax(0,1fr) auto!important;
+        height:100%!important;
+      }
+      #dashboardAnalytics .payment-card .donut-layout{
+        align-self:center!important;
+        min-height:178px!important;
+        gap:12px!important;
+      }
+
+      #appShell .lower-grid{
+        gap:10px!important;
+        margin-top:10px!important;
+        align-items:stretch!important;
+      }
+      #appShell .lower-grid>.card{
+        height:100%!important;
+        padding:14px!important;
+      }
+      #appShell .lower-grid .card-head{
+        margin-bottom:12px!important;
+      }
+      #appShell .lower-grid .table-card th,
+      #appShell .lower-grid .table-card td{
+        padding:8px 9px!important;
+      }
+      #appShell .lower-grid .summary-card .summary-content{
+        gap:4px!important;
+        margin-top:10px!important;
+      }
+      #appShell .lower-grid .summary-card .summary-title{
+        padding-bottom:8px!important;
+      }
+      #appShell .lower-grid .summary-card .summary-row{
+        padding:4px 0!important;
+      }
+      #appShell .lower-grid .summary-card .summary-row.total{
+        padding:8px!important;
+      }
+
+      /* Shared accessible scrollbars */
       #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled #branchBars{
-        max-height:430px;
         overflow-x:hidden;
         overflow-y:auto;
         overscroll-behavior:contain;
         scrollbar-gutter:stable;
         scroll-behavior:smooth;
         -webkit-overflow-scrolling:touch;
+      }
+      #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled[data-reporting-mode="day"] #branchBars{
+        max-height:260px;
+      }
+      #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled[data-reporting-mode="week"] #branchBars,
+      #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled[data-reporting-mode="range"] #branchBars{
+        max-height:340px;
       }
       #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled #branchBars:focus-visible,
       #appShell .table-card.period-scroll-enabled .table-wrap:focus-visible{
@@ -58,12 +125,18 @@
       }
 
       #appShell .table-card.period-scroll-enabled .table-wrap{
-        max-height:450px;
         overflow-x:auto;
         overflow-y:auto;
         overscroll-behavior:contain;
         scrollbar-gutter:stable;
         -webkit-overflow-scrolling:touch;
+      }
+      #appShell .table-card.period-scroll-enabled[data-reporting-mode="day"] .table-wrap{
+        max-height:330px;
+      }
+      #appShell .table-card.period-scroll-enabled[data-reporting-mode="week"] .table-wrap,
+      #appShell .table-card.period-scroll-enabled[data-reporting-mode="range"] .table-wrap{
+        max-height:390px;
       }
       #appShell .table-card.period-scroll-enabled .table-wrap table{
         margin:0;
@@ -77,22 +150,41 @@
       }
 
       @media(max-width:760px){
-        #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled #branchBars{
-          max-height:370px;
+        #dashboardAnalytics .analytics-card{
+          padding:11px!important;
+        }
+        #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled[data-reporting-mode="day"] #branchBars{
+          max-height:240px;
+        }
+        #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled[data-reporting-mode="week"] #branchBars,
+        #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled[data-reporting-mode="range"] #branchBars{
+          max-height:310px;
         }
         #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled .recon-table-head{
           padding-right:10px;
         }
-        #appShell .table-card.period-scroll-enabled .table-wrap{
-          max-height:390px;
+        #appShell .table-card.period-scroll-enabled[data-reporting-mode="day"] .table-wrap{
+          max-height:300px;
+        }
+        #appShell .table-card.period-scroll-enabled[data-reporting-mode="week"] .table-wrap,
+        #appShell .table-card.period-scroll-enabled[data-reporting-mode="range"] .table-wrap{
+          max-height:350px;
         }
       }
       @media(max-width:460px){
-        #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled #branchBars{
-          max-height:330px;
+        #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled[data-reporting-mode="day"] #branchBars{
+          max-height:220px;
         }
-        #appShell .table-card.period-scroll-enabled .table-wrap{
-          max-height:350px;
+        #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled[data-reporting-mode="week"] #branchBars,
+        #dashboardAnalytics .compact-reconciliation-card.period-scroll-enabled[data-reporting-mode="range"] #branchBars{
+          max-height:280px;
+        }
+        #appShell .table-card.period-scroll-enabled[data-reporting-mode="day"] .table-wrap{
+          max-height:280px;
+        }
+        #appShell .table-card.period-scroll-enabled[data-reporting-mode="week"] .table-wrap,
+        #appShell .table-card.period-scroll-enabled[data-reporting-mode="range"] .table-wrap{
+          max-height:320px;
         }
       }
     `;
@@ -144,7 +236,8 @@
     if (!card || !bars) return;
 
     const rowCount = bars.querySelectorAll('.recon-row').length;
-    const shouldScroll = (mode === 'week' || mode === 'range') && rowCount > 8;
+    const visibleLimit = mode === 'day' ? 5 : 7;
+    const shouldScroll = ['day', 'week', 'range'].includes(mode) && rowCount > visibleLimit;
 
     card.classList.toggle('period-scroll-enabled', shouldScroll);
     card.dataset.reportingMode = mode;
@@ -172,7 +265,8 @@
 
     const visibleRows = Array.from(rows.querySelectorAll('tr')).filter((row) => !row.querySelector('.empty-state'));
     const rowCount = visibleRows.length;
-    const shouldScroll = (mode === 'week' || mode === 'range') && rowCount > 8;
+    const visibleLimit = mode === 'day' ? 6 : 8;
+    const shouldScroll = ['day', 'week', 'range'].includes(mode) && rowCount > visibleLimit;
 
     card.classList.toggle('period-scroll-enabled', shouldScroll);
     card.dataset.reportingMode = mode;
