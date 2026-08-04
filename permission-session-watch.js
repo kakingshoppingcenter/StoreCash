@@ -45,6 +45,15 @@
   document.body.appendChild(script);
 })();
 
+(function loadFinalPhoneUi() {
+  if (document.querySelector('script[data-ksc-mobile-ui-v4]')) return;
+  const script = document.createElement('script');
+  script.src = './mobile-ui-v4.js?v=20260804-1035';
+  script.dataset.kscMobileUiV4 = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
+
 (function loadScopedAutoAccountReconciliation() {
   if (!document.querySelector('script[data-ksc-checker-auto-account]')) {
     const feature = document.createElement('script');
