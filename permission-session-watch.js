@@ -55,10 +55,10 @@
 })();
 
 (function loadCompactPhoneHeader() {
-  if (document.querySelector('script[data-ksc-mobile-compact-header]')) return;
+  if (document.querySelector('script[data-ksc-mobile-compact-header-v2]')) return;
   const script = document.createElement('script');
-  script.src = './mobile-compact-header.js?v=20260804-1050';
-  script.dataset.kscMobileCompactHeader = 'true';
+  script.src = './mobile-compact-header-v2.js?v=20260804-1055';
+  script.dataset.kscMobileCompactHeaderV2 = 'true';
   script.async = false;
   document.body.appendChild(script);
 })();
