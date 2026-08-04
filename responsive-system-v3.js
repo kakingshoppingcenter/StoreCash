@@ -195,3 +195,12 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });
   else initialize();
 })();
+
+(function loadFinalMobileUiV4() {
+  if (document.querySelector('script[data-ksc-mobile-ui-v4]')) return;
+  const script = document.createElement('script');
+  script.src = './mobile-ui-v4.js?v=20260804-1035';
+  script.dataset.kscMobileUiV4 = 'true';
+  script.async = false;
+  document.body.appendChild(script);
+})();
