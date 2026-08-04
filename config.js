@@ -71,7 +71,6 @@ window.KSC_CONFIG = Object.freeze({
       return;
     }
 
-    // No saved session, an expired session, or an authorization error: reveal login safely.
     if (!appVisible && !applicationLoading && (authMessage || elapsed >= 1400)) {
       finishRestore();
       return;
@@ -181,6 +180,11 @@ window.KSC_CONFIG = Object.freeze({
       selector: 'script[data-ksc-admin-sample-data]',
       source: './admin-sample-data.js?v=20260804-0902',
       attribute: 'kscAdminSampleData'
+    },
+    {
+      selector: 'script[data-ksc-reconciliation-scroll]',
+      source: './reconciliation-scroll.js?v=20260804-0958',
+      attribute: 'kscReconciliationScroll'
     },
     {
       selector: 'script[data-ksc-dashboard-analytics]',
