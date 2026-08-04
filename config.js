@@ -173,6 +173,16 @@ window.KSC_CONFIG = Object.freeze({
       attribute: 'kscAdminDelete'
     },
     {
+      selector: 'script[data-ksc-admin-sample-data-direct]',
+      source: './admin-sample-data-direct.js?v=20260804-0902',
+      attribute: 'kscAdminSampleDataDirect'
+    },
+    {
+      selector: 'script[data-ksc-admin-sample-data]',
+      source: './admin-sample-data.js?v=20260804-0902',
+      attribute: 'kscAdminSampleData'
+    },
+    {
       selector: 'script[data-ksc-dashboard-analytics]',
       source: './dashboard-analytics.js?v=20260729-1932',
       attribute: 'kscDashboardAnalytics'
