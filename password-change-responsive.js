@@ -181,7 +181,7 @@
 (function loadBranchSubmissionFilters() {
   if (document.querySelector('script[data-ksc-branch-report-filters]')) return;
   const script = document.createElement('script');
-  script.src = './branch-report-filters.js?v=20260805-0938';
+  script.src = './branch-report-filters.js?v=20260805-0945';
   script.dataset.kscBranchReportFilters = 'true';
   script.async = false;
   document.body.appendChild(script);
