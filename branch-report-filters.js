@@ -1,8 +1,8 @@
 'use strict';
 
 (function installBranchSubmissionFilters() {
-  if (window.__KSC_BRANCH_SUBMISSION_FILTERS_V2__) return;
-  window.__KSC_BRANCH_SUBMISSION_FILTERS_V2__ = true;
+  if (window.__KSC_BRANCH_SUBMISSION_FILTERS_V3__) return;
+  window.__KSC_BRANCH_SUBMISSION_FILTERS_V3__ = true;
 
   const STATUS_OPTIONS = [
     ['', 'All Statuses'],
@@ -14,23 +14,30 @@
   ];
 
   let framePending = false;
-  let controlsReady = false;
   let restored = false;
   let rowObserver = null;
   let branchSignature = '';
+  let clearedLegacySearch = false;
 
   function installStyles() {
-    if (document.getElementById('kscBranchSubmissionFilterStyles')) return;
+    let style = document.getElementById('kscBranchSubmissionFilterStyles');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'kscBranchSubmissionFilterStyles';
+      document.body.appendChild(style);
+    }
 
-    const style = document.createElement('style');
-    style.id = 'kscBranchSubmissionFilterStyles';
     style.textContent = `
       .table-card .table-controls.branch-report-filter-controls{
-        width:min(680px,100%)!important;
+        width:min(430px,100%)!important;
         display:grid!important;
-        grid-template-columns:minmax(210px,1.35fr) minmax(145px,.8fr) minmax(165px,.9fr)!important;
+        grid-template-columns:repeat(2,minmax(0,1fr))!important;
         align-items:end!important;
         gap:9px!important;
+      }
+      .branch-report-filter-controls .branch-filter-search-field,
+      .branch-report-filter-controls #reportSearch{
+        display:none!important;
       }
       .branch-report-filter-controls .branch-filter-field{
         display:grid!important;
@@ -44,7 +51,6 @@
         letter-spacing:.035em!important;
         text-transform:uppercase!important;
       }
-      .branch-report-filter-controls input,
       .branch-report-filter-controls select{
         width:100%!important;
         min-width:0!important;
@@ -62,7 +68,6 @@
         text-transform:none!important;
         letter-spacing:normal!important;
       }
-      .branch-report-filter-controls input:focus,
       .branch-report-filter-controls select:focus{
         outline:3px solid rgba(23,111,229,.12)!important;
         border-color:#176fe5!important;
@@ -85,13 +90,11 @@
           grid-template-columns:repeat(2,minmax(0,1fr))!important;
           gap:8px!important;
         }
-        html body .branch-report-filter-controls .branch-filter-search-field{grid-column:1/-1!important}
         html body .branch-report-filter-controls .branch-filter-field{
           gap:4px!important;
           font-size:8.5px!important;
           text-align:left!important;
         }
-        html body .branch-report-filter-controls input,
         html body .branch-report-filter-controls select{
           min-height:44px!important;
           height:44px!important;
@@ -103,11 +106,11 @@
       }
 
       @media(max-width:370px){
-        html body .table-card .table-controls.branch-report-filter-controls{grid-template-columns:1fr!important}
-        html body .branch-report-filter-controls .branch-filter-search-field{grid-column:1!important}
+        html body .table-card .table-controls.branch-report-filter-controls{
+          grid-template-columns:1fr!important;
+        }
       }
     `;
-    document.body.appendChild(style);
   }
 
   function sourceReports() {
@@ -135,6 +138,21 @@
     return field;
   }
 
+  function suppressLegacySearch(search) {
+    if (!search) return;
+    if (search.value) clearedLegacySearch = true;
+    search.value = '';
+    search.hidden = true;
+    search.tabIndex = -1;
+    search.setAttribute('aria-hidden', 'true');
+
+    const field = search.closest('.branch-filter-search-field');
+    if (field) {
+      field.hidden = true;
+      field.setAttribute('aria-hidden', 'true');
+    }
+  }
+
   function ensureControls() {
     installStyles();
 
@@ -143,13 +161,8 @@
     if (!search || !controls) return false;
 
     controls.classList.add('branch-report-filter-controls');
-    controls.setAttribute('aria-label', 'Branch submission filters');
-
-    if (!search.closest('.branch-filter-search-field')) {
-      search.placeholder = 'Search branch or status';
-      search.setAttribute('aria-label', 'Search branch submissions');
-      controls.prepend(makeField('branch-filter-search-field', 'Search', search));
-    }
+    controls.setAttribute('aria-label', 'Branch and status filters');
+    suppressLegacySearch(search);
 
     if (!document.getElementById('reportBranchFilter')) {
       const branch = document.createElement('select');
@@ -167,11 +180,6 @@
       status.innerHTML = STATUS_OPTIONS.map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
       status.addEventListener('change', queueApply);
       controls.appendChild(makeField('branch-filter-status-field', 'Status', status));
-    }
-
-    if (!controlsReady) {
-      search.addEventListener('input', () => window.setTimeout(queueApply, 0));
-      controlsReady = true;
     }
 
     syncBranchChoices();
@@ -290,6 +298,7 @@
       const original = renderReports;
       const wrapped = function renderReportsWithBranchStatusFilters() {
         original();
+        suppressLegacySearch(document.getElementById('reportSearch'));
         syncBranchChoices();
         queueApply();
       };
@@ -317,14 +326,25 @@
     rowObserver.observe(body, { childList: true });
   }
 
+  function refreshAfterLegacySearchRemoval() {
+    if (!clearedLegacySearch) return;
+    clearedLegacySearch = false;
+    try {
+      if (typeof renderReports === 'function') renderReports();
+    } catch (_) {
+      queueApply();
+    }
+  }
+
   function initialize() {
     installStyles();
     wrapRenderer();
     ensureControls();
     observeRows();
+    refreshAfterLegacySearchRemoval();
     queueApply();
-    setTimeout(() => { wrapRenderer(); ensureControls(); observeRows(); queueApply(); }, 250);
-    setTimeout(() => { wrapRenderer(); ensureControls(); observeRows(); queueApply(); }, 1100);
+    setTimeout(() => { wrapRenderer(); ensureControls(); observeRows(); refreshAfterLegacySearchRemoval(); queueApply(); }, 250);
+    setTimeout(() => { wrapRenderer(); ensureControls(); observeRows(); refreshAfterLegacySearchRemoval(); queueApply(); }, 1100);
   }
 
   document.addEventListener('ksc:reporting-period-loaded', () => {
