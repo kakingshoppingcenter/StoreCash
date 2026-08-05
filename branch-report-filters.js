@@ -1,8 +1,8 @@
 'use strict';
 
 (function installBranchSubmissionFilters() {
-  if (window.__KSC_BRANCH_SUBMISSION_FILTERS_V1__) return;
-  window.__KSC_BRANCH_SUBMISSION_FILTERS_V1__ = true;
+  if (window.__KSC_BRANCH_SUBMISSION_FILTERS_V2__) return;
+  window.__KSC_BRANCH_SUBMISSION_FILTERS_V2__ = true;
 
   const STATUS_OPTIONS = [
     ['', 'All Statuses'],
@@ -17,6 +17,7 @@
   let controlsReady = false;
   let restored = false;
   let rowObserver = null;
+  let branchSignature = '';
 
   function installStyles() {
     if (document.getElementById('kscBranchSubmissionFilterStyles')) return;
@@ -74,9 +75,7 @@
           grid-template-columns:minmax(0,1fr)!important;
           gap:12px!important;
         }
-        .table-card .table-controls.branch-report-filter-controls{
-          width:100%!important;
-        }
+        .table-card .table-controls.branch-report-filter-controls{width:100%!important}
       }
 
       @media(max-width:760px){
@@ -86,9 +85,7 @@
           grid-template-columns:repeat(2,minmax(0,1fr))!important;
           gap:8px!important;
         }
-        html body .branch-report-filter-controls .branch-filter-search-field{
-          grid-column:1/-1!important;
-        }
+        html body .branch-report-filter-controls .branch-filter-search-field{grid-column:1/-1!important}
         html body .branch-report-filter-controls .branch-filter-field{
           gap:4px!important;
           font-size:8.5px!important;
@@ -106,18 +103,14 @@
       }
 
       @media(max-width:370px){
-        html body .table-card .table-controls.branch-report-filter-controls{
-          grid-template-columns:1fr!important;
-        }
-        html body .branch-report-filter-controls .branch-filter-search-field{
-          grid-column:1!important;
-        }
+        html body .table-card .table-controls.branch-report-filter-controls{grid-template-columns:1fr!important}
+        html body .branch-report-filter-controls .branch-filter-search-field{grid-column:1!important}
       }
     `;
     document.body.appendChild(style);
   }
 
-  function currentReports() {
+  function sourceReports() {
     try {
       return Array.isArray(reports) ? reports : [];
     } catch (_) {
@@ -125,23 +118,21 @@
     }
   }
 
-  function userStorageKey() {
-    let userId = 'anonymous';
+  function storageKey() {
     try {
-      userId = session?.user?.id || 'anonymous';
+      return `ksc:branch-submission-filters:${session?.user?.id || 'anonymous'}`;
     } catch (_) {
-      // Anonymous fallback keeps this presentation feature operational.
+      return 'ksc:branch-submission-filters:anonymous';
     }
-    return `ksc:branch-submission-filters:${userId}`;
   }
 
-  function createField(className, labelText, control) {
-    const label = document.createElement('label');
-    label.className = `branch-filter-field ${className}`;
-    const caption = document.createElement('span');
-    caption.textContent = labelText;
-    label.append(caption, control);
-    return label;
+  function makeField(className, caption, control) {
+    const field = document.createElement('label');
+    field.className = `branch-filter-field ${className}`;
+    const title = document.createElement('span');
+    title.textContent = caption;
+    field.append(title, control);
+    return field;
   }
 
   function ensureControls() {
@@ -157,30 +148,25 @@
     if (!search.closest('.branch-filter-search-field')) {
       search.placeholder = 'Search branch or status';
       search.setAttribute('aria-label', 'Search branch submissions');
-      const searchField = createField('branch-filter-search-field', 'Search', search);
-      controls.prepend(searchField);
+      controls.prepend(makeField('branch-filter-search-field', 'Search', search));
     }
 
-    let branchSelect = document.getElementById('reportBranchFilter');
-    if (!branchSelect) {
-      branchSelect = document.createElement('select');
-      branchSelect.id = 'reportBranchFilter';
-      branchSelect.setAttribute('aria-label', 'Filter submissions by branch');
-      branchSelect.innerHTML = '<option value="">All Branches</option>';
-      controls.appendChild(createField('branch-filter-branch-field', 'Branch', branchSelect));
-      branchSelect.addEventListener('change', applyFilters);
+    if (!document.getElementById('reportBranchFilter')) {
+      const branch = document.createElement('select');
+      branch.id = 'reportBranchFilter';
+      branch.setAttribute('aria-label', 'Filter submissions by branch');
+      branch.innerHTML = '<option value="">All Branches</option>';
+      branch.addEventListener('change', queueApply);
+      controls.appendChild(makeField('branch-filter-branch-field', 'Branch', branch));
     }
 
-    let statusSelect = document.getElementById('reportStatusFilter');
-    if (!statusSelect) {
-      statusSelect = document.createElement('select');
-      statusSelect.id = 'reportStatusFilter';
-      statusSelect.setAttribute('aria-label', 'Filter submissions by status');
-      statusSelect.innerHTML = STATUS_OPTIONS
-        .map(([value, label]) => `<option value="${value}">${label}</option>`)
-        .join('');
-      controls.appendChild(createField('branch-filter-status-field', 'Status', statusSelect));
-      statusSelect.addEventListener('change', applyFilters);
+    if (!document.getElementById('reportStatusFilter')) {
+      const status = document.createElement('select');
+      status.id = 'reportStatusFilter';
+      status.setAttribute('aria-label', 'Filter submissions by status');
+      status.innerHTML = STATUS_OPTIONS.map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+      status.addEventListener('change', queueApply);
+      controls.appendChild(makeField('branch-filter-status-field', 'Status', status));
     }
 
     if (!controlsReady) {
@@ -188,105 +174,114 @@
       controlsReady = true;
     }
 
-    updateBranchOptions();
-    restoreFilters();
+    syncBranchChoices();
+    restoreChoices();
     return true;
   }
 
-  function updateBranchOptions() {
+  function syncBranchChoices() {
     const select = document.getElementById('reportBranchFilter');
     if (!select) return;
 
-    const previous = select.value;
     const unique = new Map();
-    currentReports().forEach((report) => {
+    sourceReports().forEach((report) => {
       const id = String(report?.branch_id || '').trim();
       if (!id) return;
       const name = String(report?.branches?.name || report?.branches?.code || 'Unknown Branch').trim();
       if (!unique.has(id)) unique.set(id, name);
     });
 
-    const options = [...unique.entries()].sort((left, right) => left[1].localeCompare(right[1], 'en', { sensitivity: 'base' }));
-    select.innerHTML = '<option value="">All Branches</option>' + options
+    const entries = [...unique.entries()].sort((a, b) => a[1].localeCompare(b[1], 'en', { sensitivity: 'base' }));
+    const signature = JSON.stringify(entries);
+    if (signature === branchSignature) return;
+    branchSignature = signature;
+
+    const previous = select.value;
+    select.innerHTML = '<option value="">All Branches</option>' + entries
       .map(([id, name]) => `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`)
       .join('');
-
-    select.value = options.some(([id]) => id === previous) ? previous : '';
+    select.value = entries.some(([id]) => id === previous) ? previous : '';
   }
 
-  function restoreFilters() {
+  function restoreChoices() {
     if (restored) return;
     restored = true;
     try {
-      const saved = JSON.parse(window.localStorage.getItem(userStorageKey()) || '{}');
+      const saved = JSON.parse(localStorage.getItem(storageKey()) || '{}');
       const branch = document.getElementById('reportBranchFilter');
       const status = document.getElementById('reportStatusFilter');
       if (branch && [...branch.options].some((option) => option.value === saved.branch)) branch.value = saved.branch || '';
       if (status && [...status.options].some((option) => option.value === saved.status)) status.value = saved.status || '';
     } catch (_) {
-      // Invalid or unavailable local storage should not block filtering.
+      // Storage is optional.
     }
   }
 
-  function saveFilters() {
+  function saveChoices() {
     try {
-      window.localStorage.setItem(userStorageKey(), JSON.stringify({
+      localStorage.setItem(storageKey(), JSON.stringify({
         branch: document.getElementById('reportBranchFilter')?.value || '',
         status: document.getElementById('reportStatusFilter')?.value || ''
       }));
     } catch (_) {
-      // Filtering remains available when storage is unavailable.
+      // Storage is optional.
     }
   }
 
-  function removeFilterEmptyRow() {
-    document.querySelector('#reportRows .branch-filter-empty')?.remove();
-  }
-
-  function addFilterEmptyRow() {
+  function syncEmptyState(show) {
     const body = document.getElementById('reportRows');
-    if (!body || body.querySelector('.branch-filter-empty')) return;
-    const row = document.createElement('tr');
-    row.className = 'branch-filter-empty';
-    row.innerHTML = '<td colspan="8" class="empty-state">No submissions match the selected branch and status.</td>';
-    body.appendChild(row);
+    if (!body) return;
+    let row = body.querySelector('.branch-filter-empty');
+
+    if (show && !row) {
+      row = document.createElement('tr');
+      row.className = 'branch-filter-empty';
+      row.innerHTML = '<td colspan="8" class="empty-state">No submissions match the selected branch and status.</td>';
+      body.appendChild(row);
+    } else if (!show && row) {
+      row.remove();
+    }
   }
 
   function applyFilters() {
     framePending = false;
     if (!ensureControls()) return;
 
-    const selectedBranch = document.getElementById('reportBranchFilter')?.value || '';
-    const selectedStatus = document.getElementById('reportStatusFilter')?.value || '';
-    const reportsById = new Map(currentReports().map((report) => [String(report.id), report]));
+    const branch = document.getElementById('reportBranchFilter')?.value || '';
+    const status = document.getElementById('reportStatusFilter')?.value || '';
+    const reportsById = new Map(sourceReports().map((report) => [String(report.id), report]));
     const rows = [...document.querySelectorAll('#reportRows tr[data-report-id]')];
     let visible = 0;
 
     rows.forEach((row) => {
       const report = reportsById.get(String(row.dataset.reportId));
-      const matchesBranch = !selectedBranch || String(report?.branch_id || '') === selectedBranch;
-      const matchesStatus = !selectedStatus || String(report?.status || '') === selectedStatus;
-      const show = Boolean(report && matchesBranch && matchesStatus);
+      const matches = Boolean(
+        report
+        && (!branch || String(report.branch_id || '') === branch)
+        && (!status || String(report.status || '') === status)
+      );
 
-      row.classList.toggle('branch-filter-hidden', !show);
-      row.hidden = !show;
-      if (!show) row.style.setProperty('display', 'none', 'important');
-      else row.style.removeProperty('display');
-      if (show) visible += 1;
+      row.hidden = !matches;
+      row.classList.toggle('branch-filter-hidden', !matches);
+      if (matches) {
+        row.style.removeProperty('display');
+        visible += 1;
+      } else {
+        row.style.setProperty('display', 'none', 'important');
+      }
     });
 
-    removeFilterEmptyRow();
-    if (rows.length > 0 && visible === 0) addFilterEmptyRow();
-    saveFilters();
+    syncEmptyState(rows.length > 0 && visible === 0);
+    saveChoices();
     document.dispatchEvent(new CustomEvent('ksc:branch-submission-filtered', {
-      detail: { visible, total: rows.length, branch: selectedBranch, status: selectedStatus }
+      detail: { visible, total: rows.length, branch, status }
     }));
   }
 
   function queueApply() {
     if (framePending) return;
     framePending = true;
-    window.requestAnimationFrame(applyFilters);
+    requestAnimationFrame(applyFilters);
   }
 
   function wrapRenderer() {
@@ -295,23 +290,28 @@
       const original = renderReports;
       const wrapped = function renderReportsWithBranchStatusFilters() {
         original();
-        ensureControls();
-        updateBranchOptions();
+        syncBranchChoices();
         queueApply();
       };
       wrapped.__kscBranchStatusFilters = true;
       wrapped.__kscBaseRenderReports = original;
       renderReports = wrapped;
     } catch (_) {
-      // The DOM observer still applies filters if a restricted browser blocks reassignment.
+      // DOM observation remains as a safe fallback.
     }
   }
 
   function observeRows() {
     const body = document.getElementById('reportRows');
     if (!body || rowObserver) return;
-    rowObserver = new MutationObserver(() => {
-      updateBranchOptions();
+    rowObserver = new MutationObserver((mutations) => {
+      const dataChanged = mutations.some((mutation) =>
+        [...mutation.addedNodes, ...mutation.removedNodes].some((node) =>
+          node.nodeType === 1 && (node.matches?.('tr[data-report-id]') || node.querySelector?.('tr[data-report-id]'))
+        )
+      );
+      if (!dataChanged) return;
+      syncBranchChoices();
       queueApply();
     });
     rowObserver.observe(body, { childList: true });
@@ -323,12 +323,13 @@
     ensureControls();
     observeRows();
     queueApply();
-    window.setTimeout(() => { wrapRenderer(); ensureControls(); observeRows(); queueApply(); }, 250);
-    window.setTimeout(() => { wrapRenderer(); ensureControls(); observeRows(); queueApply(); }, 1100);
+    setTimeout(() => { wrapRenderer(); ensureControls(); observeRows(); queueApply(); }, 250);
+    setTimeout(() => { wrapRenderer(); ensureControls(); observeRows(); queueApply(); }, 1100);
   }
 
   document.addEventListener('ksc:reporting-period-loaded', () => {
-    updateBranchOptions();
+    branchSignature = '';
+    syncBranchChoices();
     queueApply();
   });
   document.addEventListener('ksc:permissions-refreshed', queueApply);
